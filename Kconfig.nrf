@@ -1,0 +1,5 @@
+menu "nRF Projects"
+
+rsource "subsys/Kconfig"
+rsource "drivers/Kconfig"
+endmenu

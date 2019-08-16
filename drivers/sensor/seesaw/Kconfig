@@ -1,0 +1,14 @@
+# Kconfig - SeeSaw sensor driver
+
+menuconfig SEESAW
+	bool "SeeSaw driver"
+	help
+	  Enable SeeSaw driver.
+
+if SEESAW
+
+module = SEESAW
+module-str = SeeSaw
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
+
+endif #SEESAW

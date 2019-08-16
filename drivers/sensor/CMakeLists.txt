@@ -1,0 +1,2 @@
+add_subdirectory_ifdef(CONFIG_SENSOR_SIM sensor_sim)
+add_subdirectory_ifdef(CONFIG_SEESAW seesaw)

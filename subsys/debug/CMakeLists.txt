@@ -1,0 +1,1 @@
+add_subdirectory_ifdef(CONFIG_PPI_TRACE		ppi_trace)

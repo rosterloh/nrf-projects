@@ -1,0 +1,9 @@
+{
+        "editor.detectIndentation": false,
+        "editor.tabSize": 8,
+        "editor.insertSpaces": true,
+        "files.associations": {
+                "*.overlay": "dts",
+                "*.h": "c"
+        }
+}

@@ -1,0 +1,11 @@
+menuconfig SENSOR
+	bool "Sensor Drivers"
+	help
+		Include sensor drivers in config
+
+if SENSOR
+
+rsource "sensor_sim/Kconfig"
+rsource "seesaw/Kconfig"
+
+endif # SENSOR

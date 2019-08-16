@@ -1,0 +1,44 @@
+{
+    "env" : {
+        "zephyrIncludePath": [
+            "${workspaceFolder}/../zephyr/kernel/include",
+            "${workspaceFolder}/../zephyr/arch/arm/include",
+            "${workspaceFolder}/../zephyr/soc/${ARCH}/${SOC_PATH}",
+            "${workspaceFolder}/../zephyr/soc/${ARCH}/${SOC_PATH}/include",
+            "${workspaceFolder}/../zephyr/soc/${ARCH}/${SOC_PATH}/${SOC_FAMILY}",
+            "${workspaceFolder}/../zephyr/ext/hal/nordic",
+            "${workspaceFolder}/../zephyr/ext/hal/nordic/drivers/nrf_radio_802154",
+            "${workspaceFolder}/../zephyr/ext/hal/nordic/nrfx",
+            "${workspaceFolder}/${BOARD_DIR}",
+            "${workspaceFolder}/include",
+            "${workspaceFolder}/../zephyr/include",
+            "${workspaceFolder}/../zephyr/include/drivers",
+            "${workspaceFolder}/build/zephyr/include/generated"
+        ],
+        "ARCH": "arm",
+        "SOC_PATH": "nordic_nrf",
+        "SOC_FAMILY": "nrf52",
+        "BOARD_DIR": "../zephyr/boards/arm/nrf52840_pca10056"
+    },
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [ "${zephyrIncludePath}", "/opt/gcc-arm-none-eabi/arm-none-eabi/include" ],
+            "defines": [],
+            "compilerPath": "/opt/gcc-arm-none-eabi/bin/arm-none-eabi-gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64"
+        },
+        {
+            "name": "Win32",
+            "includePath": [ "${zephyrIncludePath}", "C:\\gccarmemb\\arm-none-eabi\\include" ],
+            "defines": [],
+            "compilerPath": "C:\\gccarmemb\\bin\\arm-none-eabi-gcc.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "msvc-x64"
+        }
+    ],
+    "version": 4
+}

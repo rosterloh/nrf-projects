@@ -1,0 +1,125 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Application",
+            "type": "shell",
+            "command": "west build -b ${input:boardName} -d build/${input:boardName} ${input:appName}",
+            "options": {
+                "env": {
+                    "ZEPHYR_TOOLCHAIN_VARIANT": "gnuarmemb",
+                    "GNUARMEMB_TOOLCHAIN_PATH": "/opt/gcc-arm-none-eabi",
+                    "ZEPHYR_SDK_INSTALL_DIR": "/opt/zephyr-sdk"
+                }
+            },
+            "windows": {
+                "options": {
+                    "env": {
+                        "ZEPHYR_TOOLCHAIN_VARIANT": "gnuarmemb",
+                        "GNUARMEMB_TOOLCHAIN_PATH": "C:\\gnu_arm_embedded",
+                    }
+                }
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Clean",
+            "type": "shell",
+            "command": "rm -rf build",
+            "windows": {
+                "command": "rm build -Recurse -Force"
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Flash",
+            "type": "shell",
+            "command": "west flash --openocd /opt/zephyr-sdk/sysroots/x86_64-pokysdk-linux/usr/bin/openocd",
+            "group": "build",
+            "presentation": {
+                "group": "monitor"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Debug",
+            "type": "shell",
+            "command": "west debug",
+            "problemMatcher": []
+        },
+        {
+            "label": "Configure",
+            "type": "shell",
+            "command": "ninja guiconfig",
+            "options": {
+                "cwd": "${workspaceRoot}/build",
+                "env": {
+                    "ZEPHYR_BASE": "${workspaceRoot}/zephyr"
+                }
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Monitor",
+            "type": "shell",
+            "command": "minicom -D ${input:serialPort} -b 115200 -c on",
+            "windows": {
+                "command": "miniterm.py ${input:serialPort} 115200"
+            },
+            "group": "build",
+            "presentation": {
+                "group": "monitor"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Monitor (RTT)",
+            "type": "shell",
+            "command": "JLinkRTTLogger -Device NRF52832_XXAA -If SWD -Speed 4000 -RTTChannel 0 /dev/stdout",
+            "windows": {
+                "command": "JLinkRTTLogger.exe -Device NRF52832_XXAA -If SWD -Speed 4000 -RTTChannel 0"
+            },
+            "group": "build",
+            "presentation": {
+                "group": "monitor"
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "boardName",
+            "type": "pickString",
+            "description": "Device to build for",
+            "options": ["nrf52840_pca10056"],
+            "default": "nrf52840_pca10056"
+        },
+        {
+            "id": "appName",
+            "type": "pickString",
+            "description": "Project to build",
+            "options": ["applications/blinds"],
+            "default": "applications/blinds"
+        },
+        {
+            "id": "serialPort",
+            "type": "promptString",
+            "description": "Serial port to monitor",
+            "default": "/dev/ttyACM0"
+        }
+    ]
+}

@@ -1,0 +1,13 @@
+if LOG
+
+menu "Event options"
+
+comment "Initially logged events"
+
+config BLINDS_INIT_LOG_MODULE_STATE_EVENT
+	bool "Module state event"
+	default y
+
+endmenu
+
+endif

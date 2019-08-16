@@ -1,0 +1,10 @@
+menu "Blinds Controller"
+rsource "src/events/Kconfig"
+rsource "src/hw_interface/Kconfig"
+rsource "src/modules/Kconfig"
+rsource "src/services/Kconfig"
+endmenu
+
+menu "Zephyr Kernel"
+source "$ZEPHYR_BASE/Kconfig.zephyr"
+endmenu
