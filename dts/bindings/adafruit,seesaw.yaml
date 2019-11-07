@@ -2,13 +2,12 @@ title: Adafruit SeeSaw I/O expander
 
 description: >
     This is a representation of the Adafruit SeeSaw sensor
-inherits:
-    !include i2c-device.yaml
+
+compatible: "adafruit,seesaw"
+
+include: i2c-device.yaml
 
 properties:
-    compatible:
-      constraint: "adafruit,seesaw"
-
     irq-gpios:
       type: compound
       category: required

@@ -1,3 +1,9 @@
+rsource "bluetooth/Kconfig"
+
 rsource "event_manager/Kconfig"
+
 rsource "fw_metadata/Kconfig"
+
 rsource "debug/Kconfig"
+
+rsource "shell/Kconfig"

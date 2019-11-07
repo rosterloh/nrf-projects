@@ -4,18 +4,19 @@ manifest:
   remotes:
     - name: zephyrproject
       url-base: https://github.com/zephyrproject-rtos
-    - name: mcuboot
-      url-base: https://github.com/JuulLabs-OSS
     - name: rosterloh
       url-base: git@github.com:rosterloh/nrf-projects.git
 
   projects:
     - name: zephyr
-      revision: 0409dd1ce83501b2e091edb9ccbf70e92e89a967
+      revision: f4296a03caa7c9172bb60862a7a5bbb209713470
       west-commands: scripts/west-commands.yml
     - name: ci-tools
-      revision: d56f2dd3510e20fa8cf4aad442495c08a658113f
+      revision: 20aa511fbd302ba8429a9ab04ee96c201b547743
       path: tools/ci-tools
+    - name: hal_nordic
+      revision: e0bfd6f253ca6a5e87b6f53a8bb317bd6f483511
+      path: modules/hal/nordic
     - name: mcumgr
       revision: 84934959d2d1722a23b7e7e200191ae4a6f96168
       path: modules/lib/mcumgr
@@ -23,15 +24,14 @@ manifest:
       revision: bc62a2fa9d98ddb5d633c932ea199bc68e10f194
       path: modules/fs/nffs
     - name: openthread
-      revision: 0dbecf508e7a79aae8ed9631f1a63fc65478b213
+      revision: 882e7074b5986027b85cb4f3ba1dc563a11ca013
       path: modules/lib/openthread
     - name: segger
       revision: 6fcf61606d6012d2c44129edc033f59331e268bc
       path: modules/debug/segger
 
     - name: mcuboot
-      remote: mcuboot
-      revision: fe5ab1c35b12ce1545481766906275ec96d91daa
+      revision: 4d0c5fa488b27dbbd3e3223574d594d7648e0a17
 
   self:
     path: nrf

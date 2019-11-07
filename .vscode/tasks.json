@@ -6,7 +6,7 @@
         {
             "label": "Build Application",
             "type": "shell",
-            "command": "west build -b ${input:boardName} -d build/${input:boardName} ${input:appName}",
+            "command": "west build -b ${input:boardName} -d build/${input:boardName} ${input:appName} -- -DCMAKE_BUILD_TYPE=${input:buildType}",
             "options": {
                 "env": {
                     "ZEPHYR_TOOLCHAIN_VARIANT": "gnuarmemb",
@@ -58,19 +58,8 @@
         {
             "label": "Configure",
             "type": "shell",
-            "command": "ninja guiconfig",
-            "options": {
-                "cwd": "${workspaceRoot}/build",
-                "env": {
-                    "ZEPHYR_BASE": "${workspaceRoot}/zephyr"
-                }
-            },
+            "command": "west build -d build/${input:boardName} -t guiconfig",
             "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "focus": true,
-                "panel": "shared"
-            },
             "problemMatcher": []
         },
         {
@@ -105,7 +94,7 @@
             "id": "boardName",
             "type": "pickString",
             "description": "Device to build for",
-            "options": ["nrf52840_pca10056"],
+            "options": ["nrf52840_pca10056", "nrf52_adafruit_feather"],
             "default": "nrf52840_pca10056"
         },
         {
@@ -116,10 +105,24 @@
             "default": "applications/blinds"
         },
         {
+            "id": "buildType",
+            "type": "pickString",
+            "description": "Type of build",
+            "options": ["ZDebug", "ZRelease"],
+            "default": "ZDebug"
+        },
+        {
             "id": "serialPort",
             "type": "promptString",
             "description": "Serial port to monitor",
             "default": "/dev/ttyACM0"
+        },
+        {
+            "id": "debugAdapter",
+            "type": "pickString",
+            "description": "Type of debug adapter attached",
+            "options": ["openocd", "jlink", "pyocd"],
+            "default": "openocd"
         }
     ]
 }

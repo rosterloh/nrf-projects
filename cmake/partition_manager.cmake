@@ -10,6 +10,9 @@ define_property(GLOBAL PROPERTY PM_IMAGES
 Each image's directory will be searched for a pm.yml, and will receive a pm_config.h header file with the result.
 Also, the each image's hex file will be automatically associated with its partition.")
 
+# Create a variable which exposes the correct logical target for the current image.
+set(${IMAGE}logical_target ${logical_target_for_zephyr_elf} CACHE STRING "" FORCE)
+
 if(FIRST_BOILERPLATE_EXECUTION)
   get_property(PM_IMAGES GLOBAL PROPERTY PM_IMAGES)
 
@@ -44,7 +47,6 @@ if(FIRST_BOILERPLATE_EXECUTION)
     set(pm_cmd
       ${PYTHON_EXECUTABLE}
       ${NRF_DIR}/scripts/partition_manager.py
-      --input-names ${images}
       --input-files ${input_files}
       --flash-size ${flash_size}
       --output ${CMAKE_BINARY_DIR}/partitions.yml
@@ -120,7 +122,7 @@ if(FIRST_BOILERPLATE_EXECUTION)
         if(${part} IN_LIST images)
           get_property(${part}_KERNEL_NAME GLOBAL PROPERTY ${part}_KERNEL_NAME)
           set(${part}_PM_HEX_FILE ${${part}_PROJECT_BINARY_DIR}/${${part}_KERNEL_NAME}.hex)
-          set(${part}_PM_TARGET ${part}_zephyr_final)
+          set(${part}_PM_TARGET ${${part}_logical_target})
         elseif(${part} IN_LIST containers)
           set(${part}_PM_HEX_FILE ${PROJECT_BINARY_DIR}/${part}.hex)
           set(${part}_PM_TARGET ${part}_hex)
@@ -172,5 +174,27 @@ if(FIRST_BOILERPLATE_EXECUTION)
     endif()
     set(ZEPHYR_RUNNER_CONFIG_KERNEL_HEX "${PROJECT_BINARY_DIR}/merged.hex"
       CACHE STRING "Path to merged image in Intel Hex format" FORCE)
+  endif()
+
+  if (CONFIG_SECURE_BOOT AND CONFIG_BOOTLOADER_MCUBOOT)
+    # Create symbols for the offsets required for moving test update hex files
+    # to MCUBoots secondary slot. This is needed because objcopy does not
+    # support arithmetic expressions as argument (e.g. '0x100+0x200'), and all
+    # of the symbols used to generate the offset is only available as a
+    # generator expression when MCUBoots cmake code exectues. This because
+    # partition manager is performed as the last step in the configuration stage.
+    math(EXPR s0_offset "${PM_MCUBOOT_SECONDARY_ADDRESS} - ${PM_S0_ADDRESS}")
+    math(EXPR s1_offset "${PM_MCUBOOT_SECONDARY_ADDRESS} - ${PM_S1_ADDRESS}")
+
+    set_property(
+      TARGET partition_manager
+      PROPERTY s0_TO_SECONDARY
+      ${s0_offset}
+      )
+    set_property(
+      TARGET partition_manager
+      PROPERTY s1_TO_SECONDARY
+      ${s1_offset}
+      )
   endif()
 endif()
