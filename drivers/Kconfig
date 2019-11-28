@@ -2,4 +2,8 @@ menu "Device Drivers"
 
 rsource "sensor/Kconfig"
 
+if BT_LL_NRFXLIB
+rsource "bt_ll_nrfxlib/Kconfig"
+endif
+
 endmenu

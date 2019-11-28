@@ -1,0 +1,34 @@
+menu "HID State"
+
+config CONTROLLER_REPORT_DESC
+	string "HID report descriptor"
+	default ""
+	help
+	  This option specifies a path to the HID report descriptor file.
+
+config CONTROLLER_HID_STATE_ENABLE
+	bool "Enable HID state"
+	help
+	  HID events processing module.
+
+if CONTROLLER_HID_STATE_ENABLE
+
+config CONTROLLER_HID_REPORT_EXPIRATION
+	int "HID report expiration [ms]"
+	default 500
+	help
+	  Define the time after which a HID report expires
+	  and is not sent again.
+
+config CONTROLLER_HID_EVENT_QUEUE_SIZE
+	int "HID event queue size"
+	default 12
+	range 2 255
+
+module = CONTROLLER_HID_STATE
+module-str = HID state
+source "subsys/logging/Kconfig.template.log_config"
+
+endif
+
+endmenu

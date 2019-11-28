@@ -2,7 +2,7 @@ rsource "bluetooth/Kconfig"
 
 rsource "event_manager/Kconfig"
 
-rsource "fw_metadata/Kconfig"
+rsource "fw_info/Kconfig"
 
 rsource "debug/Kconfig"
 

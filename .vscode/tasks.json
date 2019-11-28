@@ -9,7 +9,7 @@
             "command": "west build -b ${input:boardName} -d build/${input:boardName} ${input:appName} -- -DCMAKE_BUILD_TYPE=${input:buildType}",
             "options": {
                 "env": {
-                    "ZEPHYR_TOOLCHAIN_VARIANT": "gnuarmemb",
+                    "ZEPHYR_TOOLCHAIN_VARIANT": "zephyr",
                     "GNUARMEMB_TOOLCHAIN_PATH": "/opt/gcc-arm-none-eabi",
                     "ZEPHYR_SDK_INSTALL_DIR": "/opt/zephyr-sdk"
                 }
@@ -42,7 +42,7 @@
         {
             "label": "Flash",
             "type": "shell",
-            "command": "west flash --openocd /opt/zephyr-sdk/sysroots/x86_64-pokysdk-linux/usr/bin/openocd",
+            "command": "west flash -d build/${input:boardName} -r ${input:debugAdapter}",
             "group": "build",
             "presentation": {
                 "group": "monitor"
@@ -95,14 +95,14 @@
             "type": "pickString",
             "description": "Device to build for",
             "options": ["nrf52840_pca10056", "nrf52_adafruit_feather"],
-            "default": "nrf52840_pca10056"
+            "default": "nrf52_adafruit_feather"
         },
         {
             "id": "appName",
             "type": "pickString",
             "description": "Project to build",
-            "options": ["applications/blinds"],
-            "default": "applications/blinds"
+            "options": ["applications/blinds", "applications/controller"],
+            "default": "applications/controller"
         },
         {
             "id": "buildType",
@@ -121,8 +121,8 @@
             "id": "debugAdapter",
             "type": "pickString",
             "description": "Type of debug adapter attached",
-            "options": ["openocd", "jlink", "pyocd"],
-            "default": "openocd"
+            "options": ["nrfjprog", "jlink", "pyocd", "openocd"],
+            "default": "jlink"
         }
     ]
 }

@@ -1,0 +1,13 @@
+title: Adafruit SeeSaw I/O expander
+
+description: >
+    This is a representation of the Adafruit SeeSaw sensor
+
+compatible: "adafruit,seesaw"
+
+include: i2c-device.yaml
+
+properties:
+    int-gpios:
+      type: phandle-array
+      required: true

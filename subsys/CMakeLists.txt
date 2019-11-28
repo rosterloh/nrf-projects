@@ -4,7 +4,7 @@ endif()
 
 add_subdirectory_ifdef(CONFIG_EVENT_MANAGER     event_manager)
 add_subdirectory_ifdef(CONFIG_PROFILER          profiler)
-add_subdirectory_ifdef(CONFIG_FW_METADATA       fw_metadata)
+add_subdirectory_ifdef(CONFIG_FW_METADATA       fw_info)
 add_subdirectory_ifdef(CONFIG_SHELL_BT_NUS      shell)
 
 add_subdirectory(debug)
