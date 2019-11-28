@@ -4,6 +4,7 @@
 #include <soc.h>
 #include <device.h>
 #include <drivers/gpio.h>
+#include <drivers/seesaw.h>
 #include <misc/util.h>
 
 #include "key_id.h"
@@ -21,6 +22,15 @@
 LOG_MODULE_REGISTER(MODULE, CONFIG_CONTROLLER_BUTTONS_LOG_LEVEL);
 
 #define SCAN_INTERVAL CONFIG_CONTROLLER_BUTTONS_SCAN_INTERVAL
+
+#define BUTTON_RIGHT 6
+#define BUTTON_DOWN  7
+#define BUTTON_LEFT  9
+#define BUTTON_UP    10
+#define BUTTON_SEL   14
+
+u32_t button_mask = (1 << BUTTON_RIGHT) | (1 << BUTTON_DOWN) |
+                    (1 << BUTTON_LEFT) | (1 << BUTTON_UP) | (1 << BUTTON_SEL);
 
 enum state {
 	STATE_IDLE,
@@ -143,6 +153,9 @@ static void init_fn(void)
                 LOG_ERR("Cannot get io device binding");
                 goto error;
         }
+
+        seesaw_gpio_configure(io_dev, button_mask, INPUT_PULLUP);
+        seesaw_gpio_interrupts(io_dev, button_mask, 1);
 
 	module_set_state(MODULE_STATE_READY);
 

@@ -11,49 +11,6 @@ extern struct seesaw_data seesaw_driver;
 #include <logging/log.h>
 LOG_MODULE_DECLARE(seesaw, CONFIG_SENSOR_LOG_LEVEL);
 
-int seesaw_attr_set(struct device *dev,
-		     enum sensor_channel chan,
-		     enum sensor_attribute attr,
-		     const struct sensor_value *val)
-{
-/*	struct seesaw_data *data = DEV_DATA(dev);
-	const struct seesaw_config *config = DEV_CFG(dev);
-	s16_t int_level = (val->val1 * 1000000 + val->val2) /
-			  SEESAW_TREG_LSB_SCALING;
-	u8_t intl_reg;
-	u8_t inth_reg;
-*/
-	if (chan != SENSOR_CHAN_ALL) {
-		return -ENOTSUP;
-	}
-/*
-	LOG_DBG("set threshold to %d", int_level);
-
-	if (attr == SENSOR_ATTR_UPPER_THRESH) {
-		intl_reg = SEESAW_INTHL;
-		inth_reg = SEESAW_INTHH;
-	} else if (attr == SENSOR_ATTR_LOWER_THRESH) {
-		intl_reg = SEESAW_INTLL;
-		inth_reg = SEESAW_INTLH;
-	} else {
-		return -ENOTSUP;
-	}
-
-	if (i2c_reg_write_byte(data->i2c, config->i2c_address,
-			       intl_reg, (u8_t)int_level)) {
-		LOG_DBG("Failed to set INTxL attribute!");
-		return -EIO;
-	}
-
-	if (i2c_reg_write_byte(data->i2c, config->i2c_address,
-			       inth_reg, (u8_t)(int_level >> 8))) {
-		LOG_DBG("Failed to set INTxH attribute!");
-		return -EIO;
-	}
-*/
-	return 0;
-}
-
 static void seesaw_gpio_callback(struct device *dev,
 				  struct gpio_callback *cb, u32_t pins)
 {
@@ -81,11 +38,11 @@ static void seesaw_thread_cb(void *arg)
 			      SEESAW_STAT, &status) < 0) {
 		return;
 	}
-
-	if (data->int_handler != NULL) {
-		data->int_handler(dev, &data->int_trigger);
-	}
 */
+	if (data->int_cb) {
+		data->int_cb();
+	}
+
 	gpio_pin_enable_callback(data->gpio, config->gpio_pin);
 }
 
@@ -113,36 +70,15 @@ static void seesaw_work_cb(struct k_work *work)
 }
 #endif
 
-int seesaw_trigger_set(struct device *dev,
-			const struct sensor_trigger *trig,
-			sensor_trigger_handler_t handler)
+void seesaw_int_callback_set(struct device *dev,
+			     seesaw_int_callback_t cb)
 {
 	struct seesaw_data *data = DEV_DATA(dev);
-	const struct seesaw_config *config = DEV_CFG(dev);
-/*
-	if (i2c_reg_write_byte(data->i2c, config->i2c_address,
-			       SEESAW_INTC, SEESAW_INTC_DISABLED)) {
-		return -EIO;
-	}
-*/
-	gpio_pin_disable_callback(data->gpio, config->gpio_pin);
+        const struct seesaw_config *config = DEV_CFG(dev);
 
-	if (trig->type == SENSOR_TRIG_THRESHOLD) {
-		data->int_handler = handler;
-		data->int_trigger = *trig;
-	} else {
-		LOG_ERR("Unsupported sensor trigger");
-		return -ENOTSUP;
-	}
+	data->int_cb = cb;
 
-	gpio_pin_enable_callback(data->gpio, config->gpio_pin);
-/*
-	if (i2c_reg_write_byte(data->i2c, config->i2c_address,
-			       SEESAW_INTC, SEESAW_INTC_ABS_MODE)) {
-		return -EIO;
-	}
-*/
-	return 0;
+        gpio_pin_enable_callback(data->gpio, config->gpio_pin);
 }
 
 int seesaw_init_interrupt(struct device *dev)

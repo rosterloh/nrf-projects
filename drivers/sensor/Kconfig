@@ -6,6 +6,5 @@ menuconfig SENSOR
 if SENSOR
 
 rsource "sensor_sim/Kconfig"
-rsource "seesaw/Kconfig"
 
 endif # SENSOR

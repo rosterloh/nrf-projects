@@ -1,5 +1,6 @@
 menu "Device Drivers"
 
+rsource "seesaw/Kconfig"
 rsource "sensor/Kconfig"
 
 if BT_LL_NRFXLIB

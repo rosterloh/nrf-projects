@@ -2,47 +2,16 @@
 #include <device.h>
 #include <drivers/i2c.h>
 #include <drivers/gpio.h>
+#include <drivers/seesaw.h>
 #include <sys/byteorder.h>
 #include <sys/util.h>
 #include <kernel.h>
-#include <drivers/sensor.h>
 #include <sys/__assert.h>
-#include <logging/log.h>
 
 #include "seesaw.h"
 
+#include <logging/log.h>
 LOG_MODULE_REGISTER(seesaw, CONFIG_SENSOR_LOG_LEVEL);
-
-static int seesaw_sample_fetch(struct device *dev, enum sensor_channel chan)
-{
-	//struct seesaw_data *data = DEV_DATA(dev);
-        //const struct seesaw_config *config = DEV_CFG(dev);
-
-	__ASSERT_NO_MSG(chan == SENSOR_CHAN_ALL);
-/*
-	if (i2c_burst_read(data->i2c, config->i2c_address,
-			   SEESAW_OUTPUT_BASE,
-			   (u8_t *)data->sample,
-			   sizeof(data->sample))) {
-		return -EIO;
-	}
-*/
-	return 0;
-}
-
-static int seesaw_channel_get(struct device *dev,
-			      enum sensor_channel chan,
-			      struct sensor_value *val)
-{
-	//struct seesaw_data *data = DEV_DATA(dev);
-	//size_t len = ARRAY_SIZE(data->sample);
-
-	if (chan != SENSOR_CHAN_ALL) {
-		return -ENOTSUP;
-	}
-
-	return 0;
-}
 
 int seesaw_read(struct device *dev, u8_t regHigh, u8_t regLow,
                 u8_t* buf, u8_t num)
@@ -60,13 +29,80 @@ int seesaw_read(struct device *dev, u8_t regHigh, u8_t regLow,
 	return i2c_read(data->i2c, buf, num, config->i2c_address);
 }
 
+int seesaw_write(struct device *dev, u8_t regHigh, u8_t regLow,
+                u8_t* buf, u8_t num)
+{
+	struct seesaw_data *data = DEV_DATA(dev);
+        const struct seesaw_config *config = DEV_CFG(dev);
+
+	u8_t reg[6] = { regHigh, regLow };
+
+        memcpy(&reg[2], buf, num);
+/*
+        for (int i = 0; i < num; i++) {
+                reg[i+2] = buf[i];
+        }
+*/
+        return i2c_write(data->i2c, reg, num+2, config->i2c_address);
+}
+
+static int seesaw_pin_mode_bulk(struct device *dev, u32_t pins, u8_t mode)
+{
+        u8_t cmd[] = { (u8_t)(pins >> 24) , (u8_t)(pins >> 16),
+                       (u8_t)(pins >> 8), (u8_t)pins };
+        switch (mode) {
+		case OUTPUT:
+                        seesaw_write(dev, SEESAW_GPIO_BASE,
+                                     SEESAW_GPIO_DIRSET_BULK, cmd, 4);
+			break;
+		case INPUT:
+			seesaw_write(dev, SEESAW_GPIO_BASE,
+                                     SEESAW_GPIO_DIRCLR_BULK, cmd, 4);
+			break;
+		case INPUT_PULLUP:
+			seesaw_write(dev, SEESAW_GPIO_BASE,
+                                     SEESAW_GPIO_DIRCLR_BULK, cmd, 4);
+			seesaw_write(dev, SEESAW_GPIO_BASE,
+                                     SEESAW_GPIO_PULLENSET, cmd, 4);
+			seesaw_write(dev, SEESAW_GPIO_BASE,
+                                     SEESAW_GPIO_BULK_SET, cmd, 4);
+			break;
+		case INPUT_PULLDOWN:
+			seesaw_write(dev, SEESAW_GPIO_BASE,
+                                     SEESAW_GPIO_DIRCLR_BULK, cmd, 4);
+			seesaw_write(dev, SEESAW_GPIO_BASE,
+                                     SEESAW_GPIO_PULLENSET, cmd, 4);
+			seesaw_write(dev, SEESAW_GPIO_BASE,
+                                     SEESAW_GPIO_BULK_CLR, cmd, 4);
+			break;
+	}
+
+	return 0;
+}
+
+static int seesaw_set_gpio_interrupts(struct device *dev, u32_t pins, u8_t en)
+{
+        u8_t cmd[] = { (u8_t)(pins >> 24) , (u8_t)(pins >> 16),
+                       (u8_t)(pins >> 8), (u8_t)pins };
+	if (en) {
+		seesaw_write(dev, SEESAW_GPIO_BASE,
+                             SEESAW_GPIO_INTENSET, cmd, 4);
+	} else {
+		seesaw_write(dev, SEESAW_GPIO_BASE,
+                             SEESAW_GPIO_INTENCLR, cmd, 4);
+        }
+
+        return 0;
+}
+
 static int seesaw_init_device(struct device *dev)
 {
         struct seesaw_data *data = DEV_DATA(dev);
         const struct seesaw_config *config = DEV_CFG(dev);
         u8_t hw_id;
         u8_t buf[4];
-        
+
+        k_sleep(200);
         u8_t reg[3] = { SEESAW_STATUS_BASE, SEESAW_STATUS_SWRST, 0xFF };
         if (i2c_write(data->i2c, reg, 3, config->i2c_address) < 0) {
                 LOG_ERR("Failed to software reset device");
@@ -93,7 +129,8 @@ static int seesaw_init_device(struct device *dev)
 
         u32_t version = sys_get_be32(buf);
         u16_t date = version & 0xFFFF;
-	LOG_DBG("Product ID: %d, Compiled: %d-%d-20%d", version >> 16, date & 0x1F, (date & 0x1E0) >> 5, date >> 9);
+	LOG_DBG("Product ID: %d, Compiled: %d-%d-20%d",
+                version >> 16, date & 0x1F, (date & 0x1E0) >> 5, date >> 9);
 
         if (seesaw_read(dev, SEESAW_STATUS_BASE, SEESAW_STATUS_OPTIONS,
                         buf, 4) < 0) {
@@ -154,15 +191,10 @@ static int seesaw_init(struct device *dev)
 	return 0;
 }
 
-struct seesaw_data seesaw_driver;
-
-static const struct sensor_driver_api seesaw_driver_api = {
-#ifdef CONFIG_SEESAW_TRIGGER
-	.attr_set     = seesaw_attr_set,
-	.trigger_set  = seesaw_trigger_set,
-#endif
-	.sample_fetch = seesaw_sample_fetch,
-	.channel_get  = seesaw_channel_get,
+static const struct seesaw_driver_api seesaw_driver_api = {
+        .pin_mode_bulk = seesaw_pin_mode_bulk,
+        .gpio_interrupts = seesaw_set_gpio_interrupts,
+        .int_callback_set = seesaw_int_callback_set,
 };
 
 static const struct seesaw_config seesaw_config = {
@@ -173,6 +205,8 @@ static const struct seesaw_config seesaw_config = {
 	.gpio_pin = DT_INST_0_ADAFRUIT_SEESAW_INT_GPIOS_PIN,
 #endif
 };
+
+static struct seesaw_data seesaw_driver;
 
 DEVICE_AND_API_INIT(seesaw, DT_INST_0_ADAFRUIT_SEESAW_LABEL, seesaw_init,
 		    &seesaw_driver, &seesaw_config, 

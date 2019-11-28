@@ -1,5 +1,5 @@
-#ifndef ZEPHYR_DRIVERS_SENSOR_SEESAW_SEESAW_H_
-#define ZEPHYR_DRIVERS_SENSOR_SEESAW_SEESAW_H_
+#ifndef ZEPHYR_DRIVERS_SEESAW_SEESAW_H_
+#define ZEPHYR_DRIVERS_SEESAW_SEESAW_H_
 
 #include <device.h>
 #include <drivers/gpio.h>
@@ -156,14 +156,12 @@ struct seesaw_config {
 
 struct seesaw_data {
 	struct device *i2c;
-	s16_t sample[64];
 
 #ifdef CONFIG_SEESAW_TRIGGER
 	struct device *gpio;
 	struct gpio_callback gpio_cb;
 
-	sensor_trigger_handler_t int_handler;
-	struct sensor_trigger int_trigger;
+	seesaw_int_callback_t int_cb;
 
 #if defined(CONFIG_SEESAW_TRIGGER_OWN_THREAD)
 	K_THREAD_STACK_MEMBER(thread_stack, CONFIG_SEESAW_THREAD_STACK_SIZE);
@@ -181,14 +179,9 @@ int seesaw_read(struct device *dev, u8_t regHigh, u8_t regLow,
                 u8_t* buf, u8_t num);
 
 #ifdef CONFIG_SEESAW_TRIGGER
-int seesaw_attr_set(struct device *dev,
-		     enum sensor_channel chan,
-		     enum sensor_attribute attr,
-		     const struct sensor_value *val);
 
-int seesaw_trigger_set(struct device *dev,
-			const struct sensor_trigger *trig,
-			sensor_trigger_handler_t handler);
+void seesaw_int_callback_set(struct device *dev,
+			     seesaw_int_callback_t cb);
 
 int seesaw_init_interrupt(struct device *dev);
 #endif /* CONFIG_SEESAW_TRIGGER */
@@ -197,4 +190,4 @@ int seesaw_init_interrupt(struct device *dev);
 ((const struct seesaw_config * const)(dev)->config->config_info)
 #define DEV_DATA(dev) ((struct seesaw_data * const)(dev)->driver_data)
 
-#endif /* ZEPHYR_DRIVERS_SENSOR_SEESAW_SEESAW_H_ */
+#endif /* ZEPHYR_DRIVERS_SEESAW_SEESAW_H_ */
