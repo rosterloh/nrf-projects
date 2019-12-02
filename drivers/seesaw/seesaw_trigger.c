@@ -1,9 +1,6 @@
 #include <device.h>
-#include <drivers/gpio.h>
-#include <drivers/i2c.h>
 #include <sys/util.h>
 #include <kernel.h>
-#include <drivers/sensor.h>
 #include "seesaw.h"
 
 extern struct seesaw_data seesaw_driver;
@@ -32,15 +29,9 @@ static void seesaw_thread_cb(void *arg)
 	struct device *dev = arg;
 	struct seesaw_data *data = DEV_DATA(dev);
 	const struct seesaw_config *config = DEV_CFG(dev);
-/*	u8_t status;
 
-	if (i2c_reg_read_byte(data->i2c, config->i2c_address,
-			      SEESAW_STAT, &status) < 0) {
-		return;
-	}
-*/
 	if (data->int_cb) {
-		data->int_cb();
+		data->int_cb(dev);
 	}
 
 	gpio_pin_enable_callback(data->gpio, config->gpio_pin);
@@ -70,15 +61,17 @@ static void seesaw_work_cb(struct k_work *work)
 }
 #endif
 
-void seesaw_int_callback_set(struct device *dev,
-			     seesaw_int_callback_t cb)
+int seesaw_set_int_callback(struct device *dev,
+			    seesaw_int_callback_t int_cb)
 {
 	struct seesaw_data *data = DEV_DATA(dev);
         const struct seesaw_config *config = DEV_CFG(dev);
 
-	data->int_cb = cb;
+	data->int_cb = int_cb;
 
         gpio_pin_enable_callback(data->gpio, config->gpio_pin);
+
+        return 0;
 }
 
 int seesaw_init_interrupt(struct device *dev)

@@ -3,6 +3,8 @@
 
 #include <device.h>
 #include <drivers/gpio.h>
+#include <drivers/i2c.h>
+#include <drivers/seesaw.h>
 #include <sys/util.h>
 
 /** The module base addresses for different seesaw modules. */
@@ -115,6 +117,24 @@ enum {
         SEESAW_ENCODER_DELTA = 0x05,
 };
 
+enum {
+        SEESAW_PRODUCT_JOYWING = 3632,
+        SEESAW_PRODUCT_CRICKITHAT = 3957,
+        SEESAW_PRODUCT_SOIL = 4026,
+        SEESAW_PRODUCT_ROBOHAT = 9998,
+        SEESAW_PRODUCT_CRICKIT = 9999,
+};
+
+#define ADC_INPUT_0_PIN 2
+#define ADC_INPUT_1_PIN 3
+#define ADC_INPUT_2_PIN 4
+#define ADC_INPUT_3_PIN 5
+
+#define PWM_0_PIN 4
+#define PWM_1_PIN 5
+#define PWM_2_PIN 6
+#define PWM_3_PIN 7
+
 #define SEESAW_HW_ID_CODE			0x55 ///< seesaw HW ID code
 
 /** raw key event stucture for keypad module */
@@ -125,7 +145,6 @@ union keyEventRaw {
     } bit;              ///< bitfield format
     u8_t reg;           ///< register format
 };
-
 
 /** extended key event stucture for keypad module */
 union keyEvent {
@@ -156,6 +175,7 @@ struct seesaw_config {
 
 struct seesaw_data {
 	struct device *i2c;
+        u16_t pid;
 
 #ifdef CONFIG_SEESAW_TRIGGER
 	struct device *gpio;
@@ -176,12 +196,12 @@ struct seesaw_data {
 };
 
 int seesaw_read(struct device *dev, u8_t regHigh, u8_t regLow,
-                u8_t* buf, u8_t num);
+                u8_t* buf, u8_t num, u16_t delay);
 
 #ifdef CONFIG_SEESAW_TRIGGER
 
-void seesaw_int_callback_set(struct device *dev,
-			     seesaw_int_callback_t cb);
+int seesaw_set_int_callback(struct device *dev,
+	                    seesaw_int_callback_t handler);
 
 int seesaw_init_interrupt(struct device *dev);
 #endif /* CONFIG_SEESAW_TRIGGER */

@@ -21,16 +21,17 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(MODULE, CONFIG_CONTROLLER_BUTTONS_LOG_LEVEL);
 
-#define SCAN_INTERVAL CONFIG_CONTROLLER_BUTTONS_SCAN_INTERVAL
+#define BUTTON_A 6
+#define BUTTON_B 7
+#define BUTTON_Y 9
+#define BUTTON_X 10
+#define BUTTON_SEL 14
 
-#define BUTTON_RIGHT 6
-#define BUTTON_DOWN  7
-#define BUTTON_LEFT  9
-#define BUTTON_UP    10
-#define BUTTON_SEL   14
-
-u32_t button_mask = (1 << BUTTON_RIGHT) | (1 << BUTTON_DOWN) |
-                    (1 << BUTTON_LEFT) | (1 << BUTTON_UP) | (1 << BUTTON_SEL);
+u32_t button_mask = (1 << BUTTON_A) | (1 << BUTTON_B) |
+                    (1 << BUTTON_Y) | (1 << BUTTON_X) | (1 << BUTTON_SEL);
+u8_t buttons[5] = { BUTTON_A, BUTTON_B, BUTTON_Y, BUTTON_X, BUTTON_SEL }; 
+u32_t button_state = 0;
+u32_t prev_state = 0;
 
 enum state {
 	STATE_IDLE,
@@ -39,31 +40,15 @@ enum state {
 	STATE_SUSPENDING
 };
 
-//static struct device *gpio_devs[ARRAY_SIZE(port_map)];
-//static struct gpio_callback gpio_cb[ARRAY_SIZE(port_map)];
 static struct device *io_dev;
 static struct k_delayed_work button_pressed;
 static enum state state;
 
-static int callback_ctrl(bool enable)
+static void button_handler(struct device *dev)
 {
-	int err = 0;
+        seesaw_read_digital(dev, button_mask, &button_state);
 
-	if (enable) {
-		//err = gpio_pin_enable_callback(gpio_devs[row[i].port],
-		//			       row[i].pin);
-	} else {
-		//err = gpio_pin_disable_callback(gpio_devs[row[i].port],
-		//				row[i].pin);
-	}
-	if (!enable) {
-		/* Callbacks are disabled but they could fire in the meantime.
-		 * Make sure pending work is canceled.
-		 */
-		k_delayed_work_cancel(&button_pressed);
-	}
-
-	return err;
+        k_delayed_work_submit(&button_pressed, 0); 
 }
 
 static int suspend(void)
@@ -81,7 +66,7 @@ static int suspend(void)
 
 	case STATE_ACTIVE:
 		state = STATE_IDLE;
-		err = callback_ctrl(true);
+		//err = callback_ctrl(true);
 		break;
 
 	case STATE_IDLE:
@@ -103,7 +88,7 @@ static void resume(void)
 		return;
 	}
 
-	int err = callback_ctrl(false);
+	int err = 0;//callback_ctrl(false);
 	if (err) {
 		LOG_ERR("Cannot disable callbacks");
 	} else {
@@ -119,31 +104,27 @@ static void resume(void)
 
 static void button_pressed_fn(struct k_work *work)
 {
-	int err = callback_ctrl(false);
+        /* Emit event for any key state change */
+	size_t evt_limit = 0;
 
-	if (err) {
-		LOG_ERR("Cannot disable callbacks");
-		module_set_state(MODULE_STATE_ERROR);
-		return;
-	}
+        for (size_t i = 0; i < 5; i++) {
+                bool is_pressed = !(button_state & BIT(buttons[i]));
+                bool was_pressed = prev_state & BIT(buttons[i]);
 
-	switch (state) {
-	case STATE_IDLE:;
-		struct wake_up_event *event = new_wake_up_event();
-		EVENT_SUBMIT(event);
-		break;
+                if ((is_pressed != was_pressed) &&
+                    (evt_limit < CONFIG_CONTROLLER_BUTTONS_EVENT_LIMIT)) {
+                        struct button_event *event = new_button_event();
 
-	case STATE_ACTIVE:
-		state = STATE_SCANNING;
-		break;
+                        event->key_id = KEY_ID(0, buttons[i]);
 
-	case STATE_SCANNING:
-	case STATE_SUSPENDING:
-	default:
-		/* Invalid state */
-		__ASSERT_NO_MSG(false);
-		break;
-	}
+                        event->pressed = is_pressed;
+                        EVENT_SUBMIT(event);
+
+                        evt_limit++;
+
+                        WRITE_BIT(prev_state, buttons[i], is_pressed);
+                }
+        }
 }
 
 static void init_fn(void)
@@ -156,6 +137,7 @@ static void init_fn(void)
 
         seesaw_gpio_configure(io_dev, button_mask, INPUT_PULLUP);
         seesaw_gpio_interrupts(io_dev, button_mask, 1);
+        seesaw_int_set(io_dev, button_handler);
 
 	module_set_state(MODULE_STATE_READY);
 

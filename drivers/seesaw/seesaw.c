@@ -1,8 +1,6 @@
 #include <string.h>
 #include <device.h>
 #include <drivers/i2c.h>
-#include <drivers/gpio.h>
-#include <drivers/seesaw.h>
 #include <sys/byteorder.h>
 #include <sys/util.h>
 #include <kernel.h>
@@ -14,7 +12,7 @@
 LOG_MODULE_REGISTER(seesaw, CONFIG_SENSOR_LOG_LEVEL);
 
 int seesaw_read(struct device *dev, u8_t regHigh, u8_t regLow,
-                u8_t* buf, u8_t num)
+                u8_t *buf, u8_t num, u16_t delay)
 {
 	struct seesaw_data *data = DEV_DATA(dev);
         const struct seesaw_config *config = DEV_CFG(dev);
@@ -24,13 +22,13 @@ int seesaw_read(struct device *dev, u8_t regHigh, u8_t regLow,
 
         ret = i2c_write(data->i2c, reg, 2, config->i2c_address);
 
-        k_busy_wait(170);
+        k_busy_wait(delay);
 
 	return i2c_read(data->i2c, buf, num, config->i2c_address);
 }
 
 int seesaw_write(struct device *dev, u8_t regHigh, u8_t regLow,
-                u8_t* buf, u8_t num)
+                u8_t *buf, u8_t num)
 {
 	struct seesaw_data *data = DEV_DATA(dev);
         const struct seesaw_config *config = DEV_CFG(dev);
@@ -38,15 +36,11 @@ int seesaw_write(struct device *dev, u8_t regHigh, u8_t regLow,
 	u8_t reg[6] = { regHigh, regLow };
 
         memcpy(&reg[2], buf, num);
-/*
-        for (int i = 0; i < num; i++) {
-                reg[i+2] = buf[i];
-        }
-*/
+
         return i2c_write(data->i2c, reg, num+2, config->i2c_address);
 }
 
-static int seesaw_pin_mode_bulk(struct device *dev, u32_t pins, u8_t mode)
+static int seesaw_set_pin_mode(struct device *dev, u32_t pins, u8_t mode)
 {
         u8_t cmd[] = { (u8_t)(pins >> 24) , (u8_t)(pins >> 16),
                        (u8_t)(pins >> 8), (u8_t)pins };
@@ -80,6 +74,40 @@ static int seesaw_pin_mode_bulk(struct device *dev, u32_t pins, u8_t mode)
 	return 0;
 }
 
+static int seesaw_get_digital(struct device *dev, u32_t pins, u32_t *val)
+{
+        u8_t buf[4];
+
+        seesaw_read(dev, SEESAW_GPIO_BASE, SEESAW_GPIO_BULK, buf, 4, 170);
+
+        *val = sys_get_be32(buf) & pins;
+
+	return 0;
+}
+
+static int seesaw_get_analog(struct device *dev, u8_t pin, u16_t *val)
+{
+        u8_t buf[2];
+        u8_t p;
+
+        switch (pin) {
+		case ADC_INPUT_0_PIN: p = 0; break;
+		case ADC_INPUT_1_PIN: p = 1; break;
+		case ADC_INPUT_2_PIN: p = 2; break;
+		case ADC_INPUT_3_PIN: p = 3; break;
+		default:
+                        LOG_WRN("Unknown analog pin read requested (%d)", pin);
+			return 0;
+			break;
+	}
+
+        seesaw_read(dev, SEESAW_ADC_BASE, SEESAW_ADC_CHANNEL_OFFSET + p, buf, 2, 500);
+
+        *val = sys_get_be16(buf);
+
+        return 0;
+}
+
 static int seesaw_set_gpio_interrupts(struct device *dev, u32_t pins, u8_t en)
 {
         u8_t cmd[] = { (u8_t)(pins >> 24) , (u8_t)(pins >> 16),
@@ -111,7 +139,7 @@ static int seesaw_init_device(struct device *dev)
         k_sleep(500);
 
         if (seesaw_read(dev, SEESAW_STATUS_BASE, SEESAW_STATUS_HW_ID,
-                        &hw_id, 1) < 0) {
+                        &hw_id, 1, 170) < 0) {
 		LOG_ERR("Cannot obtain hardware ID");
 		return -EIO;
 	}
@@ -122,18 +150,19 @@ static int seesaw_init_device(struct device *dev)
         }        
 
 	if (seesaw_read(dev, SEESAW_STATUS_BASE, SEESAW_STATUS_VERSION,
-                        buf, 4) < 0) {
+                        buf, 4, 170) < 0) {
 		LOG_ERR("Cannot obtain version information");
 		return -EIO;
 	}
 
         u32_t version = sys_get_be32(buf);
         u16_t date = version & 0xFFFF;
+        data->pid = version >> 16;
 	LOG_DBG("Product ID: %d, Compiled: %d-%d-20%d",
-                version >> 16, date & 0x1F, (date & 0x1E0) >> 5, date >> 9);
+                data->pid, date & 0x1F, (date & 0x1E0) >> 5, date >> 9);
 
         if (seesaw_read(dev, SEESAW_STATUS_BASE, SEESAW_STATUS_OPTIONS,
-                        buf, 4) < 0) {
+                        buf, 4, 170) < 0) {
 		LOG_ERR("Cannot obtain version information");
 		return -EIO;
 	}
@@ -192,9 +221,11 @@ static int seesaw_init(struct device *dev)
 }
 
 static const struct seesaw_driver_api seesaw_driver_api = {
-        .pin_mode_bulk = seesaw_pin_mode_bulk,
+        .write_pin_mode = seesaw_set_pin_mode,
+        .read_digital = seesaw_get_digital,
+        .read_analog = seesaw_get_analog,
         .gpio_interrupts = seesaw_set_gpio_interrupts,
-        .int_callback_set = seesaw_int_callback_set,
+        .int_set = seesaw_set_int_callback,
 };
 
 static const struct seesaw_config seesaw_config = {
