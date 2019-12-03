@@ -5,7 +5,7 @@ rsource "Kconfig.buttons"
 #rsource "Kconfig.selector"
 rsource "Kconfig.leds"
 #rsource "Kconfig.battery_charger"
-#rsource "Kconfig.battery_meas"
+rsource "Kconfig.battery_meas"
 
 module = CONTROLLER_BOARD
 module-str = board module

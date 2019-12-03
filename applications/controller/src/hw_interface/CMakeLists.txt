@@ -15,5 +15,5 @@ target_sources_ifdef(CONFIG_CONTROLLER_LED_ENABLE app
 # target_sources_ifdef(CONFIG_CONTROLLER_BATTERY_CHARGER_DISCRETE app
 #                      PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/battery_charger.c)
 
-# target_sources_ifdef(CONFIG_CONTROLLER_BATTERY_MEAS app
-#                      PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/battery_meas.c)
+target_sources_ifdef(CONFIG_CONTROLLER_BATTERY_MEAS app
+                     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/battery_meas.c)
