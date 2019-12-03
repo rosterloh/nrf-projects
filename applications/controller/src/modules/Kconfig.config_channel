@@ -1,0 +1,42 @@
+menu "User configuration channel"
+
+config CONTROLLER_CONFIG_ENABLE
+	bool "Enable configuration"
+	help
+	  Enables configuration storage.
+
+config CONTROLLER_CONFIG_CHANNEL_ENABLE
+	bool "Enable user configuration channel"
+	depends on CONTROLLER_CONFIG_ENABLE
+	help
+	  Enables user to change firmware parameters at runtime over the
+	  configuration channel.
+
+config CONTROLLER_CONFIG_CHANNEL_TIMEOUT
+	int "Transaction timeout on configuration channel in seconds"
+	depends on CONTROLLER_CONFIG_CHANNEL_ENABLE
+	default 10
+
+if CONTROLLER_CONFIG_ENABLE
+
+module = CONTROLLER_CONFIG
+module-str = Config channel
+source "subsys/logging/Kconfig.template.log_config"
+
+endif
+
+config CONTROLLER_CONFIG_CHANNEL_DFU_ENABLE
+	bool "DFU over the config channel"
+	depends on CONTROLLER_CONFIG_CHANNEL_ENABLE
+	help
+	  This option enables DFU over the config channel.
+
+if CONTROLLER_CONFIG_CHANNEL_DFU_ENABLE
+
+module = CONTROLLER_CONFIG_CHANNEL_DFU
+module-str = Config channel DFU
+source "subsys/logging/Kconfig.template.log_config"
+
+endif
+
+endmenu

@@ -1,0 +1,1 @@
+add_subdirectory_ifdef(CONFIG_MULTITHREADING_LOCK multithreading_lock)

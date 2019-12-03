@@ -1,0 +1,5 @@
+menu "Libraries"
+
+rsource "multithreading_lock/Kconfig"
+
+endmenu

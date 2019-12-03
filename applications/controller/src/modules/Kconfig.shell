@@ -1,0 +1,26 @@
+if SHELL
+
+menu "Shell module"
+
+config CONTROLLER_SHELL_ENABLE
+	bool "Enable shell module"
+	default n
+	depends on SHELL
+
+config CONTROLLER_DEVICE_SHELL
+	bool "Enable device information"
+	depends on CONTROLLER_SHELL_ENABLE
+	default n
+	select DEVICE_SHELL
+
+config CONTROLLER_KERNEL_SHELL
+	bool "Enable kernel information"
+	depends on CONTROLLER_SHELL_ENABLE
+	select KERNEL_SHELL
+	select THREAD_MONITOR
+	select INIT_STACKS
+	select THREAD_NAME
+
+endmenu
+
+endif
