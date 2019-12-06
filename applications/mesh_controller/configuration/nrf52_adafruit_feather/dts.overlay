@@ -1,0 +1,8 @@
+&pwm0 {
+	status = "okay";
+	ch0-pin = <17>;
+};
+&pwm1 {
+	status = "okay";
+	ch0-pin = <19>;
+};

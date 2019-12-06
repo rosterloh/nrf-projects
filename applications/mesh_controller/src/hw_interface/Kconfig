@@ -1,6 +1,6 @@
 menu "Hardware interface modules"
 
-module = BLINDS_BOARD
+module = MESH_CTL_BOARD
 module-str = board module
 source "subsys/logging/Kconfig.template.log_config"
 

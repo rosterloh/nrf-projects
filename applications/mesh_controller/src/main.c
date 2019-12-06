@@ -1,4 +1,6 @@
 #include <event_manager.h>
+
+#define MODULE main
 #include "module_state_event.h"
 
 #include <logging/log.h>

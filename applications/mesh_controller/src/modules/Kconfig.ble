@@ -1,0 +1,9 @@
+menu "BLE"
+
+comment "BLE State"
+
+module = MESH_CTL_BLE_STATE
+module-str = BLE state
+source "subsys/logging/Kconfig.template.log_config"
+
+endmenu

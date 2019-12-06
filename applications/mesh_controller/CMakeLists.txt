@@ -1,15 +1,12 @@
 cmake_minimum_required(VERSION 3.13.1)
 
 set(RO_SUPPORTED_BOARDS
-  nrf52840_pca10059
+  nrf52_adafruit_feather
   )
 
 set(RO_SUPPORTED_BUILD_TYPES
   ZDebug
-  ZDebugWithShell
-  ZDebugMCUBoot
   ZRelease
-  ZReleaseMCUBoot
   )
 
 if (NOT CMAKE_BUILD_TYPE)
@@ -32,7 +29,7 @@ set(CONF_FILE "configuration/${BOARD}/app_${CMAKE_BUILD_TYPE}.conf")
 ################################################################################
 
 include($ENV{ZEPHYR_BASE}/cmake/app/boilerplate.cmake NO_POLICY_SCOPE)
-project("Blinds Controller"
+project("Mesh Controller"
         VERSION 0.1)
 
 ################################################################################

@@ -9,7 +9,7 @@
 #include "module_state_event.h"
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(MODULE, CONFIG_BLINDS_BOARD_LOG_LEVEL);
+LOG_MODULE_REGISTER(MODULE, CONFIG_MESH_CTL_BOARD_LOG_LEVEL);
 
 static int port_setup(const char *name,
 		      const struct pin_state pin_state[],
@@ -105,6 +105,9 @@ static bool event_handler(const struct event_header *eh)
 
 		return false;
 	}
+
+        /* If event is unhandled, unsubscribe. */
+	__ASSERT_NO_MSG(false);
 
 	return false;
 }

@@ -73,7 +73,7 @@ static void turn_board_on(void)
 	return;
 
 error:
-	LOG_ERR("Cannot initialize board");
+	LOG_ERR("Cannot initialise board");
 	module_set_state(MODULE_STATE_ERROR);
 }
 
@@ -95,14 +95,14 @@ error:
 
 static bool event_handler(const struct event_header *eh)
 {
-	static bool initialized;
+	static bool initialised;
 
 	if (is_module_state_event(eh)) {
 		const struct module_state_event *event = cast_module_state_event(eh);
 
 		if (check_state(event, MODULE_ID(main), MODULE_STATE_READY)) {
-			__ASSERT_NO_MSG(!initialized);
-			initialized = true;
+			__ASSERT_NO_MSG(!initialised);
+			initialised = true;
 
 			turn_board_on();
 		}
@@ -111,8 +111,8 @@ static bool event_handler(const struct event_header *eh)
 	}
 
 	if (is_wake_up_event(eh)) {
-		if (!initialized) {
-			initialized = true;
+		if (!initialised) {
+			initialised = true;
 
 			turn_board_on();
 		}
@@ -127,8 +127,8 @@ static bool event_handler(const struct event_header *eh)
 			return false;
 		}
 
-		if (initialized) {
-			initialized = false;
+		if (initialised) {
+			initialised = false;
 
 			turn_board_off();
 		}

@@ -94,15 +94,15 @@
             "id": "boardName",
             "type": "pickString",
             "description": "Device to build for",
-            "options": ["nrf52840_pca10056", "nrf52_adafruit_feather"],
+            "options": ["nrf52_adafruit_feather", "nrf52840_pca10056"],
             "default": "nrf52_adafruit_feather"
         },
         {
             "id": "appName",
             "type": "pickString",
             "description": "Project to build",
-            "options": ["applications/blinds", "applications/controller"],
-            "default": "applications/controller"
+            "options": ["applications/hid_controller", "applications/mesh_leds", "applications/mesh_controller"],
+            "default": "applications/hid_controller"
         },
         {
             "id": "buildType",
