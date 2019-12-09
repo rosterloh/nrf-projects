@@ -8,6 +8,10 @@ config MESH_CTL_INIT_LOG_BLE_PEER_EVENT
 	bool "BLE peer event"
 	default y
 
+config MESH_CTL_INIT_LOG_BUTTON_EVENT
+	bool "Button event"
+	default y
+        
 config MESH_CTL_INIT_LOG_MODULE_STATE_EVENT
 	bool "Module state event"
 	default y

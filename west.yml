@@ -11,7 +11,7 @@ manifest:
 
   projects:
     - name: zephyr
-      revision: f570f19bef4f18bcedae41f1555a5834e946ce91
+      revision: b413223a66ed9e857c67ee21d1e8be4768804dd1
       west-commands: scripts/west-commands.yml
     - name: ci-tools
       revision: c083680dd5e281218ddb47d0ceac5c5fd5619749

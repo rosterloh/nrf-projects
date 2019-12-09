@@ -117,43 +117,6 @@ static void disconnected(struct bt_conn *conn, u8_t reason)
 
 }
 
-static void security_changed(struct bt_conn *conn, bt_security_t level,
-			     enum bt_security_err bt_err)
-{
-	if (IS_ENABLED(CONFIG_BT_PERIPHERAL)) {
-		__ASSERT_NO_MSG(active_conn[0] == conn);
-	}
-
-	int err;
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	if (!bt_err && (level >= BT_SECURITY_L2)) {
-		LOG_INF("Security with %s level %u", log_strdup(addr), level);
-	} else {
-		LOG_WRN("Security with %s failed, level %u err %d",
-			log_strdup(addr), level, bt_err);
-		if (IS_ENABLED(CONFIG_BT_PERIPHERAL)) {
-			disconnect_peer(conn);
-		}
-
-		return;
-	}
-
-	struct ble_peer_event *event = new_ble_peer_event();
-	event->id = conn;
-	event->state = PEER_STATE_SECURED;
-	EVENT_SUBMIT(event);
-
-	struct bt_conn_info info;
-
-	err = bt_conn_get_info(conn, &info);
-	if (err) {
-		LOG_WRN("Cannot get conn info");
-	}
-}
-
 static bool le_param_req(struct bt_conn *conn, struct bt_le_conn_param *param)
 {
 	LOG_INF("Conn parameters request:"
@@ -190,7 +153,6 @@ static int ble_state_init(void)
        static struct bt_conn_cb conn_callbacks = {
 		.connected = connected,
 		.disconnected = disconnected,
-		.security_changed = security_changed,
 		.le_param_req = le_param_req,
 		.le_param_updated = le_param_updated,
 	};
