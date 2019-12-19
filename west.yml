@@ -11,7 +11,7 @@ manifest:
 
   projects:
     - name: zephyr
-      revision: b413223a66ed9e857c67ee21d1e8be4768804dd1
+      revision: 847f4e6ae694001c6c8630b14eb3884dc6b3edec
       west-commands: scripts/west-commands.yml
     - name: ci-tools
       revision: c083680dd5e281218ddb47d0ceac5c5fd5619749
@@ -33,7 +33,7 @@ manifest:
       path: modules/debug/segger
 
     - name: nrfxlib
-      revision: dc9e1fbd146f5032fd3651b1e7705d8b3258ecc2
+      revision: 562c6785b3ac863cc3d0a994d6f53c780a858891
       path: nrfxlib
       remote: ncs
       

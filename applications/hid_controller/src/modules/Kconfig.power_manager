@@ -24,6 +24,14 @@ config CONTROLLER_POWER_MANAGER_TIMEOUT
 	help
 	  Time in seconds after which the device will enter low-power mode.
 
+config CONTROLLER_POWER_MANAGER_STAY_ON
+	bool "Stay on while no connections"
+	help
+	  If disabled the device will switch SoC to OFF mode after power
+	  manager timeout is done. If enabled the device will stay on
+	  but remain idle. If the device is connected it will always stay on
+	  and maintain the connection, regardless of the setting.
+
 config CONTROLLER_POWER_MANAGER_ERROR_TIMEOUT
 	int "Power manager timeout on error [s]"
 	default 30

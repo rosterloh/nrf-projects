@@ -137,7 +137,8 @@ static bool event_handler(const struct event_header *eh)
 
 			profiler_term();
 
-			if (connection_count > 0) {
+			if (IS_ENABLED(CONFIG_CONTROLLER_POWER_MANAGER_STAY_ON) ||
+			    (connection_count > 0)) {
 				/* Connection is active, keep OS alive. */
 				power_state = POWER_STATE_SUSPENDED;
 				LOG_WRN("System suspended");
@@ -202,7 +203,8 @@ static bool event_handler(const struct event_header *eh)
 		}
 
 		if (!usb_connected && (connection_count == 0) &&
-		    (power_state == POWER_STATE_SUSPENDED)) {
+		    (power_state == POWER_STATE_SUSPENDED) &&
+		    !IS_ENABLED(CONFIG_CONTROLLER_POWER_MANAGER_STAY_ON)) {
 			/* Last peer disconnected during standby.
 			 * Turn system off.
 			 */

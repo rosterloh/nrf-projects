@@ -26,24 +26,6 @@ config MESH_CTL_BUTTONS_DEBOUNCE_INTERVAL
 	help
 	  Interval before first scan. Introduced for debouncing reasons.
 
-config MESH_CTL_BUTTONS_POLARITY_INVERSED
-	bool "Inverse buttons polarity"
-	depends on MESH_CTL_BUTTONS_ENABLE
-	help
-	  When this option is enabled, button is pressed when the GPIO state
-	  is low.
-
-config MESH_CTL_BUTTONS_EVENT_LIMIT
-	int "Number of button events in single scan loop"
-	depends on MESH_CTL_BUTTONS_ENABLE
-	default 4
-	range 0 255
-	help
-	  This option specifies the number of button events generated during
-	  a single scanning loop. If more keys change state between scanning
-	  intervals, subsequent changes will be ignored and picked up during
-	  the next scanning.
-
 if !MESH_CTL_BUTTONS_NONE
 module = MESH_CTL_BUTTONS
 module-str = buttons module

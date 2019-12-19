@@ -441,10 +441,17 @@ static void scan_init(void)
 		.window = BT_GAP_SCAN_FAST_WINDOW,
 	};
 
+        static const struct bt_le_conn_param cp = {
+		.interval_min = 6,
+		.interval_max = 6,
+		.latency = 0,
+		.timeout = 400,
+	};
+
 	static const struct bt_scan_init_param scan_init = {
 		.connect_if_match = true,
 		.scan_param = &sp,
-		.conn_param = NULL,
+		.conn_param = &cp,
 	};
 
 	bt_scan_init(&scan_init);
@@ -472,7 +479,7 @@ static void set_conn_params(struct bt_conn *conn, bool peer_llpm_support)
 		buf = bt_hci_cmd_create(HCI_VS_OPCODE_CMD_CONN_UPDATE,
 					sizeof(*cmd_conn_update));
 		if (!buf) {
-			printk("Could not allocate command buffer\n");
+			LOG_ERR("Could not allocate command buffer");
 			return;
 		}
 
@@ -480,7 +487,7 @@ static void set_conn_params(struct bt_conn *conn, bool peer_llpm_support)
 
 		err = bt_hci_get_conn_handle(conn, &conn_handle);
 		if (err) {
-			printk("Failed obtaining conn_handle (err %d)\n", err);
+			LOG_ERR("Failed obtaining conn_handle (err %d)", err);
 			return;
 		}
 

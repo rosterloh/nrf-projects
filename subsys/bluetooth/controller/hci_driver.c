@@ -80,15 +80,22 @@ BUILD_ASSERT(!IS_ENABLED(CONFIG_BT_PERIPHERAL) ||
 
 static u8_t ble_controller_mempool[MEMPOOL_SIZE];
 
+#if IS_ENABLED(CONFIG_BT_CTLR_ASSERT_HANDLER)
+extern void bt_ctlr_assert_handle(char *file, u32_t line);
+
 void blectlr_assertion_handler(const char *const file, const u32_t line)
 {
-#ifdef CONFIG_BT_CTLR_ASSERT_HANDLER
-	bt_ctlr_assert_handle(file, line);
-#else
+	bt_ctlr_assert_handle((char *) file, line);
+}
+
+#else /* !IS_ENABLED(CONFIG_BT_CTLR_ASSERT_HANDLER) */
+void blectlr_assertion_handler(const char *const file, const u32_t line)
+{
 	BT_ERR("BleCtlr ASSERT: %s, %d", log_strdup(file), line);
 	k_oops();
-#endif
 }
+#endif /* IS_ENABLED(CONFIG_BT_CTLR_ASSERT_HANDLER) */
+
 
 static int cmd_handle(struct net_buf *cmd)
 {
@@ -416,8 +423,14 @@ static int ble_init(struct device *unused)
 #else
 #error "Clock accuracy is not defined"
 #endif
+
+#ifdef CONFIG_CLOCK_CONTROL_NRF_K32SRC_RC
 	clock_cfg.rc_ctiv = BLE_CONTROLLER_RECOMMENDED_RC_CTIV;
 	clock_cfg.rc_temp_ctiv = BLE_CONTROLLER_RECOMMENDED_RC_TEMP_CTIV;
+#else
+	clock_cfg.rc_ctiv = 0;
+	clock_cfg.rc_temp_ctiv = 0;
+#endif
 
 	err = ble_controller_init(blectlr_assertion_handler,
 				  &clock_cfg,
