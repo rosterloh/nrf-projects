@@ -2,6 +2,13 @@ menu "BLE"
 
 comment "BLE State"
 
+config CONTROLLER_BLE_ENABLE_PASSKEY
+	bool "Enable passkey based pairing"
+	depends on !CONTROLLER_PASSKEY_NONE
+	depends on BT_PERIPHERAL
+	help
+	  Enable passkey based pairing for increased security.
+
 module = CONTROLLER_BLE_STATE
 module-str = BLE state
 source "subsys/logging/Kconfig.template.log_config"
@@ -126,6 +133,15 @@ config CONTROLLER_BLE_FAST_ADV
 	help
 	  Device will initially advertise with shorter interval.
 
+config CONTROLLER_BLE_FAST_ADV_TIMEOUT
+	int "Time of initial fast advertising [s]"
+	default 30
+	depends on CONTROLLER_BLE_FAST_ADV
+	help
+	  Device will initially advertise with shorter interval to enable
+	  quicker discovery by hosts. After this time it will shift to normal
+	  cadence advertising.
+
 config CONTROLLER_BLE_SWIFT_PAIR
 	bool "Enable Swift Pair feature"
 	depends on CONTROLLER_BLE_ADVERTISING_ENABLE
@@ -133,17 +149,8 @@ config CONTROLLER_BLE_SWIFT_PAIR
 	help
 	  Enable quick pairing with Microsoft Swift Pair.
 
-config CONTROLLER_BLE_FAST_ADV_TIMEOUT
-	int "Time of initial fastest advertising"
-	default 30
-	depends on CONTROLLER_BLE_FAST_ADV
-	help
-	  Device will initially advertise with shorter interval to enable
-	  quickest discovery by Swift Pair hosts. After this time it will shift
-	  to normal cadence advertising.
-
 config CONTROLLER_BLE_SWIFT_PAIR_GRACE_PERIOD
-	int "No Swift Pair timegap before suspend"
+	int "No Swift Pair time gap before suspend [s]"
 	default 30
 	depends on CONTROLLER_POWER_MANAGER_ENABLE
 	depends on CONTROLLER_BLE_SWIFT_PAIR
@@ -261,6 +268,7 @@ config CONTROLLER_BLE_QOS_STATS_PRINTOUT_ENABLE
 	select USB_CDC_ACM
 	select SERIAL
 	select UART_LINE_CTRL
+	select UART_INTERRUPT_DRIVEN
 	help
 	  Enable to get real-time QoS information printouts via CDC ACM.
 

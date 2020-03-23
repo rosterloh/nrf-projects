@@ -1,5 +1,10 @@
 menu "Libraries"
+rsource "flash_patch/Kconfig"
+rsource "fprotect/Kconfig"
+rsource "dk_buttons_and_leds/Kconfig"
 
 rsource "multithreading_lock/Kconfig"
+rsource "fatal_error/Kconfig"
+rsource "date_time/Kconfig"
 
 endmenu

@@ -5,7 +5,7 @@
  */
 
 #include <zephyr.h>
-#include <misc/byteorder.h>
+#include <sys/byteorder.h>
 #include <string.h>
 #include <bluetooth/scan.h>
 
@@ -596,35 +596,13 @@ static bool find_uuid(const u8_t *data,
 	}
 
 	for (size_t i = 0; i < data_len; i += uuid_len) {
-		struct bt_uuid *uuid;
-		u16_t uuid_16;
-		u32_t uuid_32;
-		struct bt_uuid_128 uuid_128 = {
-			.uuid.type = BT_UUID_TYPE_128,
-		};
+		struct bt_uuid_128 uuid;
 
-
-		switch (uuid_type) {
-		case BT_UUID_TYPE_16:
-			memcpy(&uuid_16, &data[i], uuid_len);
-			uuid = BT_UUID_DECLARE_16(sys_le16_to_cpu(uuid_16));
-			break;
-
-		case BT_UUID_TYPE_32:
-			memcpy(&uuid_32, &data[i], uuid_len);
-			uuid = BT_UUID_DECLARE_32(sys_le32_to_cpu(uuid_32));
-			break;
-
-		case BT_UUID_TYPE_128:
-			memcpy(uuid_128.val, &data[i], uuid_len);
-			uuid = (struct bt_uuid *)&uuid_128;
-			break;
-
-		default:
+		if (!bt_uuid_create(&uuid.uuid, &data[i], uuid_len)) {
 			return false;
 		}
 
-		if (bt_uuid_cmp(uuid, target_uuid->uuid) == 0) {
+		if (bt_uuid_cmp(&uuid.uuid, target_uuid->uuid) == 0) {
 			return true;
 		}
 	}
@@ -1171,6 +1149,11 @@ void bt_scan_init(const struct bt_scan_init_param *init)
 	}
 }
 
+void bt_scan_update_init_conn_params(struct bt_le_conn_param *new_conn_param)
+{
+	bt_scan.conn_param = *new_conn_param;
+}
+
 static void check_enabled_filters(struct bt_scan_control *control)
 {
 	control->filter_cnt = 0;
@@ -1279,6 +1262,7 @@ static void scan_device_found(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
 			      struct net_buf_simple *ad)
 {
 	struct bt_scan_control scan_control;
+	struct net_buf_simple_state state;
 
 	memset(&scan_control, 0, sizeof(scan_control));
 
@@ -1288,20 +1272,25 @@ static void scan_device_found(const bt_addr_le_t *addr, s8_t rssi, u8_t type,
 
 	/* Check id device is connectable. */
 	if (type == BT_LE_ADV_IND ||
-	    type == BT_LE_ADV_DIRECT_IND ||
-	    type == BT_LE_ADV_DIRECT_IND_LOW_DUTY) {
+	    type == BT_LE_ADV_DIRECT_IND) {
 		scan_control.connectable = true;
 	}
 
 	/* Check the address filter. */
 	check_addr(&scan_control, addr);
 
+	/* Save advertising buffer state to transfer it
+	 * data to application if futher processing is needed.
+	 */
+	net_buf_simple_save(ad, &state);
 	bt_data_parse(ad, adv_data_found, (void *)&scan_control);
+	net_buf_simple_restore(ad, &state);
 
 	scan_control.device_info.addr = addr;
 	scan_control.device_info.conn_param = &bt_scan.conn_param;
 	scan_control.device_info.adv_info.adv_type = type;
 	scan_control.device_info.adv_info.rssi = rssi;
+	scan_control.device_info.adv_data = ad;
 
 	/* In the multifilter mode, the number of the active filters must equal
 	 * the number of the filters matched to generate the notification.

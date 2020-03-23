@@ -1,0 +1,24 @@
+menu "Watchdog settings"
+
+config CONTROLLER_WATCHDOG_ENABLE
+	bool "Enable watchdog support"
+	depends on WATCHDOG
+	help
+	  Enable watchdog to reset the device in case of problems.
+
+if CONTROLLER_WATCHDOG_ENABLE
+
+config CONTROLLER_WATCHDOG_TIMEOUT
+	int "Watchdog timeout value [ms]"
+	default 500
+	range 500 120000
+	help
+	  Timeout of watchdog timer. After the time elapse a device will be restarted.
+
+module = CONTROLLER_WATCHDOG
+module-str = watchdog
+source "subsys/logging/Kconfig.template.log_config"
+
+endif
+
+endmenu

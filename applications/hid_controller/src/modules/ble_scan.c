@@ -14,7 +14,9 @@
 
 #include "ble_scan_def.h"
 
+#ifdef CONFIG_BT_LL_NRFXLIB
 #include "ble_controller_hci_vs.h"
+#endif /* CONFIG_BT_LL_NRFXLIB */
 
 #include <logging/log.h>
 LOG_MODULE_REGISTER(MODULE, CONFIG_CONTROLLER_BLE_SCANNING_LOG_LEVEL);
@@ -33,6 +35,7 @@ struct subscriber_data {
 struct subscribed_peer {
 	bt_addr_le_t addr;
 	enum peer_type peer_type;
+	bool llpm_support;
 };
 
 static struct subscribed_peer subscribed_peers[CONFIG_BT_MAX_PAIRED];
@@ -44,6 +47,54 @@ static struct k_delayed_work scan_stop_trigger;
 static bool peers_only = !IS_ENABLED(CONFIG_CONTROLLER_BLE_NEW_PEER_SCAN_ON_BOOT);
 static bool scanning;
 
+
+static void verify_bond(const struct bt_bond_info *info, void *user_data)
+{
+	for (size_t i = 0; i < ARRAY_SIZE(subscribed_peers); i++) {
+		if (!bt_addr_le_cmp(&subscribed_peers[i].addr, &info->addr)) {
+			return;
+		}
+	}
+
+	LOG_WRN("Peer data inconsistency. Removing unknown peer.");
+	int err = bt_unpair(BT_ID_DEFAULT, &info->addr);
+
+	if (err) {
+		LOG_ERR("Cannot unpair peer (err %d)", err);
+		module_set_state(MODULE_STATE_ERROR);
+	}
+}
+
+static int settings_set(const char *key, size_t len_rd,
+			settings_read_cb read_cb, void *cb_arg)
+{
+	if (!strcmp(key, SUBSCRIBED_PEERS_STORAGE_NAME)) {
+		ssize_t len = read_cb(cb_arg, &subscribed_peers,
+				      sizeof(subscribed_peers));
+
+		if ((len != sizeof(subscribed_peers)) || (len != len_rd)) {
+			LOG_ERR("Can't read subscribed_peers from storage");
+			module_set_state(MODULE_STATE_ERROR);
+			return len;
+		}
+	}
+
+	return 0;
+}
+
+static int verify_subscribed_peers(void)
+{
+	/* On commit we should verify data to prevent inconsistency.
+	 * Inconsistency could be caused e.g. by reset after secure,
+	 * but before storing peer type in ble_scan module.
+	 */
+	bt_foreach_bond(BT_ID_DEFAULT, verify_bond, NULL);
+
+	return 0;
+}
+
+SETTINGS_STATIC_HANDLER_DEFINE(ble_scan, MODULE_NAME, NULL, settings_set,
+			       verify_subscribed_peers, NULL);
 
 static void conn_cnt_foreach(struct bt_conn *conn, void *data)
 {
@@ -143,7 +194,7 @@ static int configure_address_filters(u8_t *filter_mode)
 	return err;
 }
 
-static int configure_short_name_filters(u8_t *filter_mode)
+static int configure_name_filters(u8_t *filter_mode)
 {
 	u8_t peers_mask = 0;
 	int err = 0;
@@ -153,27 +204,22 @@ static int configure_short_name_filters(u8_t *filter_mode)
 	}
 
 	/* Bluetooth scan filters are defined in separate header. */
-	for (size_t i = 0; i < ARRAY_SIZE(peer_type_short_name); i++) {
+	for (size_t i = 0; i < ARRAY_SIZE(peer_name); i++) {
 		if (!(BIT(i) & (~peers_mask))) {
 			continue;
 		}
 
-		const struct bt_scan_short_name filter = {
-			.name = peer_type_short_name[i],
-			.min_len = strlen(peer_type_short_name[i]),
-		};
-
-		err = bt_scan_filter_add(BT_SCAN_FILTER_TYPE_SHORT_NAME,
-					 &filter);
+		err = bt_scan_filter_add(BT_SCAN_FILTER_TYPE_NAME,
+					 peer_name[i]);
 		if (err) {
 			LOG_ERR("Name filter cannot be added (err %d)", err);
 			break;
 		}
-		*filter_mode |= BT_SCAN_SHORT_NAME_FILTER;
+		*filter_mode |= BT_SCAN_NAME_FILTER;
 	}
 
 	if (!err) {
-		LOG_INF("Device type filters added");
+		LOG_INF("Device name filters added");
 	}
 
 	return err;
@@ -184,11 +230,9 @@ static int configure_filters(void)
 	BUILD_ASSERT_MSG(CONFIG_BT_MAX_PAIRED == CONFIG_BT_MAX_CONN, "");
 	BUILD_ASSERT_MSG(CONFIG_BT_MAX_PAIRED <= CONFIG_BT_SCAN_ADDRESS_CNT,
 			 "Insufficient number of address filters");
-	BUILD_ASSERT_MSG(ARRAY_SIZE(peer_type_short_name) <=
-			 CONFIG_BT_SCAN_SHORT_NAME_CNT,
-			 "Insufficient number of short name filers");
-	BUILD_ASSERT_MSG(ARRAY_SIZE(peer_type_short_name) == PEER_TYPE_COUNT,
-			 "");
+	BUILD_ASSERT_MSG(ARRAY_SIZE(peer_name) <= CONFIG_BT_SCAN_NAME_CNT,
+			 "Insufficient number of name filers");
+	BUILD_ASSERT_MSG(ARRAY_SIZE(peer_name) == PEER_TYPE_COUNT, "");
 	bt_scan_filter_remove_all();
 
 	u8_t filter_mode = 0;
@@ -203,7 +247,7 @@ static int configure_filters(void)
 
 	if (!err && use_name_filters &&
 	    (count_bond() < CONFIG_BT_MAX_PAIRED)) {
-		err = configure_short_name_filters(&filter_mode);
+		err = configure_name_filters(&filter_mode);
 	}
 
 	if (!err) {
@@ -213,6 +257,52 @@ static int configure_filters(void)
 	}
 
 	return err;
+}
+
+static bool is_llpm_peer_connected(void)
+{
+	bool llpm_peer_connected = false;
+
+	for (size_t i = 0; i < ARRAY_SIZE(subscribed_peers); i++) {
+		if (!bt_addr_le_cmp(&subscribed_peers[i].addr, BT_ADDR_LE_NONE)) {
+			break;
+		}
+
+		struct bt_conn *conn = bt_conn_lookup_addr_le(BT_ID_DEFAULT,
+						&subscribed_peers[i].addr);
+
+		if (conn) {
+			bt_conn_unref(conn);
+			if (subscribed_peers[i].llpm_support) {
+				llpm_peer_connected = true;
+				break;
+			}
+		}
+	}
+
+	return llpm_peer_connected;
+}
+
+static void update_init_conn_params(bool llpm_peer_connected)
+{
+	struct bt_le_conn_param cp = {
+		.latency = 0,
+		.timeout = 400,
+	};
+
+	/* In case LLPM peer is already connected, the next peer has to be
+	 * connected with 10 ms connection interval instead of 7.5 ms.
+	 * Connecting with 7.5 ms may cause Bluetooth scheduling issues.
+	 */
+	if (llpm_peer_connected) {
+		cp.interval_min = 8;
+		cp.interval_max = 8;
+	} else {
+		cp.interval_min = 6;
+		cp.interval_max = 6;
+	}
+
+	bt_scan_update_init_conn_params(&cp);
 }
 
 static void scan_start(void)
@@ -231,6 +321,14 @@ static void scan_start(void)
 	} else if (discovering_peer_conn) {
 		LOG_INF("Discovery in progress");
 		return;
+	}
+
+	if (IS_ENABLED(CONFIG_BT_LL_NRFXLIB)) {
+		if (scanning) {
+			scan_stop();
+		}
+
+		update_init_conn_params(is_llpm_peer_connected());
 	}
 
 	err = configure_filters();
@@ -353,71 +451,8 @@ static void reset_subscribers(void)
 	for (size_t i = 0; i < ARRAY_SIZE(subscribed_peers); i++) {
 		bt_addr_le_copy(&subscribed_peers[i].addr, BT_ADDR_LE_NONE);
 		subscribed_peers[i].peer_type = PEER_TYPE_COUNT;
+		subscribed_peers[i].llpm_support = false;
 	}
-}
-
-static int settings_set(const char *key, size_t len_rd,
-			settings_read_cb read_cb, void *cb_arg)
-{
-	if (!strcmp(key, SUBSCRIBED_PEERS_STORAGE_NAME)) {
-		ssize_t len = read_cb(cb_arg, &subscribed_peers,
-				      sizeof(subscribed_peers));
-		if (len != sizeof(subscribed_peers)) {
-			LOG_ERR("Can't read subscribed_peers from storage");
-			module_set_state(MODULE_STATE_ERROR);
-			return len;
-		}
-	}
-
-	return 0;
-}
-
-static void verify_bond(const struct bt_bond_info *info, void *user_data)
-{
-	for (size_t i = 0; i < ARRAY_SIZE(subscribed_peers); i++) {
-		if (!bt_addr_le_cmp(&subscribed_peers[i].addr, &info->addr)) {
-			return;
-		}
-	}
-
-	LOG_WRN("Peer data inconsistency. Removing unknown peer.");
-	int err = bt_unpair(BT_ID_DEFAULT, &info->addr);
-
-	if (err) {
-		LOG_ERR("Cannot unpair peer (err %d)", err);
-		module_set_state(MODULE_STATE_ERROR);
-	}
-}
-
-static int verify_subscribed_peers(void)
-{
-	/* On commit we should verify data to prevent inconsistency.
-	 * Inconsistency could be caused e.g. by reset after secure,
-	 * but before storing peer type in ble_scan module.
-	 */
-	bt_foreach_bond(BT_ID_DEFAULT, verify_bond, NULL);
-
-	return 0;
-}
-
-static int settings_init(void)
-{
-	if (IS_ENABLED(CONFIG_SETTINGS)) {
-		static struct settings_handler sh = {
-			.name = MODULE_NAME,
-			.h_set = settings_set,
-			.h_commit = verify_subscribed_peers,
-		};
-
-		int err = settings_register(&sh);
-
-		if (err) {
-			LOG_ERR("Cannot register settings (err %d)", err);
-			return err;
-		}
-	}
-
-	return 0;
 }
 
 BT_SCAN_CB_INIT(scan_cb, scan_filter_match, NULL,
@@ -427,13 +462,6 @@ static void scan_init(void)
 {
 	reset_subscribers();
 
-	int err = settings_init();
-
-	if (err) {
-		module_set_state(MODULE_STATE_ERROR);
-		return;
-	}
-
 	static const struct bt_le_scan_param sp = {
 		.type = BT_HCI_LE_SCAN_ACTIVE,
 		.filter_dup = BT_HCI_LE_SCAN_FILTER_DUP_ENABLE,
@@ -441,7 +469,7 @@ static void scan_init(void)
 		.window = BT_GAP_SCAN_FAST_WINDOW,
 	};
 
-        static const struct bt_le_conn_param cp = {
+	static const struct bt_le_conn_param cp = {
 		.interval_min = 6,
 		.interval_max = 6,
 		.latency = 0,
@@ -471,7 +499,8 @@ static void set_conn_params(struct bt_conn *conn, bool peer_llpm_support)
 {
 	int err;
 
-	if (peer_llpm_support && IS_ENABLED(CONFIG_BT_LL_NRFXLIB)) {
+#ifdef CONFIG_BT_LL_NRFXLIB
+	if (peer_llpm_support) {
 		struct net_buf *buf;
 
 		hci_vs_cmd_conn_update_t *cmd_conn_update;
@@ -499,7 +528,9 @@ static void set_conn_params(struct bt_conn *conn, bool peer_llpm_support)
 
 		err = bt_hci_cmd_send_sync(HCI_VS_OPCODE_CMD_CONN_UPDATE, buf,
 					   NULL);
-	} else {
+	} else
+#endif /* CONFIG_BT_LL_NRFXLIB */
+	{
 		struct bt_le_conn_param param = {
 			.interval_min = 0x0006,
 			.interval_max = 0x0006,
@@ -508,6 +539,11 @@ static void set_conn_params(struct bt_conn *conn, bool peer_llpm_support)
 		};
 
 		err = bt_conn_le_param_update(conn, &param);
+
+		if (err == -EALREADY) {
+			/* Connection parameters are already set. */
+			err = 0;
+		}
 	}
 
 	if (err) {
@@ -520,9 +556,7 @@ static void set_conn_params(struct bt_conn *conn, bool peer_llpm_support)
 
 static bool event_handler(const struct event_header *eh)
 {
-	if ((IS_ENABLED(CONFIG_CONTROLLER_HID_MOUSE) && is_hid_mouse_event(eh)) ||
-	    (IS_ENABLED(CONFIG_CONTROLLER_HID_KEYBOARD) && is_hid_keyboard_event(eh)) ||
-	    (IS_ENABLED(CONFIG_CONTROLLER_HID_CONSUMER_CTRL) && is_hid_consumer_ctrl_event(eh))) {
+	if (is_hid_report_event(eh)) {
 		/* Do not scan when devices are in use. */
 		scan_counter = 0;
 
@@ -644,6 +678,8 @@ static bool event_handler(const struct event_header *eh)
 					bt_conn_get_dst(discovering_peer_conn));
 				subscribed_peers[i].peer_type =
 					event->peer_type;
+				subscribed_peers[i].llpm_support =
+					event->peer_llpm_support;
 				store_subscribed_peers();
 				break;
 			}
@@ -674,7 +710,5 @@ EVENT_LISTENER(MODULE, event_handler);
 EVENT_SUBSCRIBE(MODULE, module_state_event);
 EVENT_SUBSCRIBE(MODULE, ble_peer_event);
 EVENT_SUBSCRIBE(MODULE, ble_peer_operation_event);
-EVENT_SUBSCRIBE(MODULE, hid_mouse_event);
-EVENT_SUBSCRIBE(MODULE, hid_keyboard_event);
-EVENT_SUBSCRIBE(MODULE, hid_consumer_ctrl_event);
 EVENT_SUBSCRIBE(MODULE, ble_discovery_complete_event);
+EVENT_SUBSCRIBE(MODULE, hid_report_event);

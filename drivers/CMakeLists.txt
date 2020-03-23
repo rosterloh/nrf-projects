@@ -1,3 +1,4 @@
 add_subdirectory_ifdef(CONFIG_SEESAW seesaw)
 add_subdirectory_ifdef(CONFIG_SENSOR sensor)
 add_subdirectory_ifdef(CONFIG_BT_LL_NRFXLIB bt_ll_nrfxlib)
+add_subdirectory_ifdef(CONFIG_MPSL mpsl)

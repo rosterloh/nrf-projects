@@ -3,7 +3,7 @@ target_sources(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ble_state.c)
 target_sources(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ble_bond.c)
 
 target_sources_ifdef(CONFIG_BT_PERIPHERAL
-                     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ble_latency.c)
+		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ble_latency.c)
 
 target_sources_ifdef(CONFIG_CONTROLLER_BLE_ADVERTISING_ENABLE
 		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ble_adv.c)
@@ -15,10 +15,13 @@ target_sources_ifdef(CONFIG_CONTROLLER_BLE_SCANNING_ENABLE
 		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ble_scan.c)
 
 target_sources_ifdef(CONFIG_CONTROLLER_BLE_QOS_ENABLE
-                     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ble_qos.c)
-                     
-target_sources_ifdef(CONFIG_CONTROLLER_CONFIG_ENABLE
-		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/config.c)
+		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ble_qos.c)
+
+target_sources_ifdef(CONFIG_SETTINGS
+		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/settings_loader.c)
+
+target_sources_ifdef(CONFIG_CONTROLLER_CONFIG_CHANNEL_ENABLE
+		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/info.c)
 
 # target_sources_ifdef(CONFIG_CONTROLLER_BLE_SCANNING_ENABLE
 # 		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/hid_forward.c)
@@ -51,8 +54,8 @@ target_sources_ifdef(CONFIG_CONTROLLER_SHELL_ENABLE
 # 		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/watchdog.c)
 
 target_sources_ifdef(CONFIG_CONTROLLER_BAS_ENABLE
-                     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/bas.c)
-                     
+		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/bas.c)
+
 target_sources_ifdef(CONFIG_BT_PERIPHERAL
 		     app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dev_descr.c)
 

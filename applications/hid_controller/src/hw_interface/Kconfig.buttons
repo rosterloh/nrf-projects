@@ -25,7 +25,7 @@ config CONTROLLER_BUTTONS_SCAN_INTERVAL
 config CONTROLLER_BUTTONS_DEBOUNCE_INTERVAL
 	int "Interval before first button scan in ms"
 	depends on CONTROLLER_BUTTONS_ENABLE
-	default 1
+	default 2
 	help
 	  Interval before first scan. Introduced for debouncing reasons.
 

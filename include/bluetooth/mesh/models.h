@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Nordic Semiconductor ASA
+ * Copyright (c) 2019 - 2020 Nordic Semiconductor ASA
  *
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
@@ -34,6 +34,11 @@
 #include <bluetooth/mesh/gen_loc_cli.h>
 #include <bluetooth/mesh/gen_prop_srv.h>
 #include <bluetooth/mesh/gen_prop_cli.h>
+#include <bluetooth/mesh/lightness_srv.h>
+#include <bluetooth/mesh/lightness_cli.h>
+#include <bluetooth/mesh/sensor_types.h>
+#include <bluetooth/mesh/sensor_srv.h>
+#include <bluetooth/mesh/sensor_cli.h>
 
 /** @brief Check whether the model publishes to a unicast address.
  *
@@ -42,5 +47,8 @@
  * @return true if the model publishes to a unicast address, false otherwise.
  */
 bool bt_mesh_model_pub_is_unicast(const struct bt_mesh_model *mod);
+
+/** Shorthand macro for defining a model list directly in the element. */
+#define BT_MESH_MODEL_LIST(...) ((struct bt_mesh_model[]){ __VA_ARGS__ })
 
 #endif /* BT_MESH_MODELS_H__ */

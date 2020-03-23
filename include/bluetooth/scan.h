@@ -26,7 +26,7 @@
 #define BT_SCAN_H_
 
 #include <zephyr/types.h>
-#include <misc/slist.h>
+#include <sys/slist.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/uuid.h>
 #include <bluetooth/conn.h>
@@ -137,7 +137,7 @@ struct bt_filter_status {
  */
 struct bt_scan_adv_info {
 	/** BLE advertising type. According to
-	 * Bluetooth Specification 7.8.5
+	 *  Bluetooth Specification 7.8.5
 	 */
 	u8_t adv_type;
 
@@ -290,6 +290,13 @@ struct bt_scan_device_info {
 
 	/** Connection parameters for LE connection. */
 	const struct bt_le_conn_param *conn_param;
+
+	/** Received advertising data. If further
+	 *  data proccesing is needed, you should
+	 *  use @ref bt_data_parse to get specific
+	 *  advertising data type.
+	 */
+	struct net_buf_simple *adv_data;
 };
 
 /** @brief Initializing macro for scanning module.
@@ -417,6 +424,14 @@ int bt_scan_start(enum bt_scan_type scan_type);
 /**@brief Function for stopping scanning.
  */
 int bt_scan_stop(void);
+
+/**@brief Function to update initial connection parameters.
+ *
+ * @note The function should not be used when scanning is active.
+ *
+ * @param[in] new_conn_param New initial connection parameters.
+ */
+void bt_scan_update_init_conn_params(struct bt_le_conn_param *new_conn_param);
 
 #if CONFIG_BT_SCAN_FILTER_ENABLE
 

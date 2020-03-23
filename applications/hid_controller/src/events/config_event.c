@@ -2,9 +2,6 @@
 
 #include "config_event.h"
 
-#include <logging/log.h>
-LOG_MODULE_REGISTER(config_event, CONFIG_CONTROLLER_CONFIG_LOG_LEVEL);
-
 static int log_config_event(const struct event_header *eh, char *buf,
 			   size_t buf_len)
 {
@@ -18,7 +15,6 @@ static void profile_config_event(struct log_event_buf *buf,
 {
 	const struct config_event *event = cast_config_event(eh);
 
-	ARG_UNUSED(event);
 	profiler_log_encode_u32(buf, event->id);
 }
 
@@ -35,7 +31,6 @@ static void profile_config_fetch_event(struct log_event_buf *buf,
 {
 	struct config_fetch_event *event = cast_config_fetch_event(eh);
 
-	ARG_UNUSED(event);
 	profiler_log_encode_u32(buf, event->id);
 }
 
@@ -55,7 +50,6 @@ static void profile_config_fetch_request_event(struct log_event_buf *buf,
 	struct config_fetch_request_event *event =
 		cast_config_fetch_request_event(eh);
 
-	ARG_UNUSED(event);
 	profiler_log_encode_u32(buf, event->id);
 }
 

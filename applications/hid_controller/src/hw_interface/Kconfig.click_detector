@@ -1,0 +1,15 @@
+menu "Click detector configuration"
+
+config CONTROLLER_CLICK_DETECTOR_ENABLE
+	bool "Enable click detector"
+	depends on !CONTROLLER_BUTTONS_NONE
+
+if CONTROLLER_CLICK_DETECTOR_ENABLE
+
+module = CONTROLLER_CLICK_DETECTOR
+module-str = click detector module
+source "subsys/logging/Kconfig.template.log_config"
+
+endif
+
+endmenu

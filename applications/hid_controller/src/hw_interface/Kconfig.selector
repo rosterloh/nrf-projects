@@ -1,0 +1,14 @@
+menu "Selector configuration"
+
+config CONTROLLER_SELECTOR_HW_ENABLE
+	bool "Enable HW based selector"
+
+if CONTROLLER_SELECTOR_HW_ENABLE
+
+module = CONTROLLER_SELECTOR_HW
+module-str = selector hw module
+source "subsys/logging/Kconfig.template.log_config"
+
+endif
+
+endmenu

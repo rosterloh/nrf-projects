@@ -6,5 +6,8 @@ rsource "sensor/Kconfig"
 if BT_LL_NRFXLIB
 rsource "bt_ll_nrfxlib/Kconfig"
 endif
+if MPSL
+rsource "mpsl/Kconfig"
+endif
 
 endmenu

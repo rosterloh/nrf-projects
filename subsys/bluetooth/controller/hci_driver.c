@@ -1,15 +1,16 @@
 /*
- * Copyright (c) 2018 Nordic Semiconductor ASA
+ * Copyright (c) 2018 - 2020 Nordic Semiconductor ASA
  *
  * SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
  */
 
-#include <bluetooth/hci_driver.h>
+#include <drivers/bluetooth/hci_driver.h>
+#include <bluetooth/hci_vs.h>
 #include <init.h>
 #include <irq.h>
 #include <kernel.h>
 #include <soc.h>
-#include <misc/byteorder.h>
+#include <sys/byteorder.h>
 #include <stdbool.h>
 
 #include <ble_controller.h>
@@ -20,25 +21,12 @@
 #define LOG_MODULE_NAME bt_ctlr_hci_driver
 #include "common/log.h"
 
-#define BLE_CONTROLLER_IRQ_PRIO_LOW  4
-#define BLE_CONTROLLER_IRQ_PRIO_HIGH 0
-
-#if IS_ENABLED(CONFIG_SOC_SERIES_NRF52X)
-	#define BLE_CONTROLLER_PROCESS_IRQn SWI5_IRQn
-#elif IS_ENABLED(CONFIG_SOC_SERIES_NRF53X)
-	#define BLE_CONTROLLER_PROCESS_IRQn EGU0_IRQn
-#endif
-
 static K_SEM_DEFINE(sem_recv, 0, 1);
-static K_SEM_DEFINE(sem_signal, 0, UINT_MAX);
 
 static struct k_thread recv_thread_data;
-static struct k_thread signal_thread_data;
 static K_THREAD_STACK_DEFINE(recv_thread_stack, CONFIG_BLECTLR_RX_STACK_SIZE);
-static K_THREAD_STACK_DEFINE(signal_thread_stack,
-			     CONFIG_BLECTLR_SIGNAL_STACK_SIZE);
 
-
+#if defined(CONFIG_BT_CONN)
 /* It should not be possible to set CONFIG_BLECTRL_SLAVE_COUNT larger than
  * CONFIG_BT_MAX_CONN. Kconfig should make sure of that, this assert is to
  * verify that assumption.
@@ -46,6 +34,12 @@ static K_THREAD_STACK_DEFINE(signal_thread_stack,
 BUILD_ASSERT(CONFIG_BLECTRL_SLAVE_COUNT <= CONFIG_BT_MAX_CONN);
 
 #define BLECTRL_MASTER_COUNT (CONFIG_BT_MAX_CONN - CONFIG_BLECTRL_SLAVE_COUNT)
+
+#else
+
+#define BLECTRL_MASTER_COUNT 0
+
+#endif /* CONFIG_BT_CONN */
 
 BUILD_ASSERT(!IS_ENABLED(CONFIG_BT_CENTRAL) ||
 			 (BLECTRL_MASTER_COUNT > 0));
@@ -172,18 +166,12 @@ static int hci_driver_send(struct net_buf *buf)
 	return err;
 }
 
-#ifndef bt_acl_flag_pb
-/* Temporary defines, missing from hci.h */
-#define bt_acl_flags_pb(h)		((h) >> 12 & BIT_MASK(2))
-#define bt_acl_flags_bc(h)		((h) >> 14 & BIT_MASK(2))
-#endif /* bt_acl_flag_pb */
-
 static void data_packet_process(u8_t *hci_buf)
 {
 	struct net_buf *data_buf = bt_buf_get_rx(BT_BUF_ACL_IN, K_FOREVER);
 	struct bt_hci_acl_hdr *hdr = (void *)hci_buf;
 	u16_t hf, handle, len;
-	u8_t pb, bc;
+	u8_t flags, pb, bc;
 
 	if (!data_buf) {
 		BT_ERR("No data buffer available");
@@ -193,8 +181,9 @@ static void data_packet_process(u8_t *hci_buf)
 	len = sys_le16_to_cpu(hdr->len);
 	hf = sys_le16_to_cpu(hdr->handle);
 	handle = bt_acl_handle(hf);
-	pb = bt_acl_flags_pb(hf);
-	bc = bt_acl_flags_bc(hf);
+	flags = bt_acl_flags(hf);
+	pb = bt_acl_flags_pb(flags);
+	bc = bt_acl_flags_bc(flags);
 
 	BT_DBG("Data: handle (0x%02x), PB(%01d), BC(%01d), len(%u)", handle,
 	       pb, bc, len);
@@ -313,16 +302,10 @@ static void recv_thread(void *p1, void *p2, void *p3)
 	}
 }
 
-static void signal_thread(void *p1, void *p2, void *p3)
+void host_signal(void)
 {
-	ARG_UNUSED(p1);
-	ARG_UNUSED(p2);
-	ARG_UNUSED(p3);
-
-	while (true) {
-		k_sem_take(&sem_signal, K_FOREVER);
-		ble_controller_low_prio_tasks_process();
-	}
+	/* Wake up the RX event/data thread */
+	k_sem_give(&sem_recv);
 }
 
 static int hci_driver_open(void)
@@ -340,107 +323,6 @@ static int hci_driver_open(void)
 	LOG_HEXDUMP_INF(build_revision, sizeof(build_revision),
 			"BLE controller build revision: ");
 
-	return 0;
-}
-
-static const struct bt_hci_driver drv = {
-	.name = "Controller",
-	.bus = BT_HCI_DRIVER_BUS_VIRTUAL,
-	.open = hci_driver_open,
-	.send = hci_driver_send,
-};
-
-void host_signal(void)
-{
-	/* Wake up the RX event/data thread */
-	k_sem_give(&sem_recv);
-}
-
-void SIGNALLING_Handler(void)
-{
-	k_sem_give(&sem_signal);
-}
-
-u8_t bt_read_static_addr(bt_addr_le_t *addr)
-{
-	if (((NRF_FICR->DEVICEADDR[0] != UINT32_MAX) ||
-	     ((NRF_FICR->DEVICEADDR[1] & UINT16_MAX) != UINT16_MAX)) &&
-	    (NRF_FICR->DEVICEADDRTYPE & 0x01)) {
-		sys_put_le32(NRF_FICR->DEVICEADDR[0], &addr->a.val[0]);
-		sys_put_le16(NRF_FICR->DEVICEADDR[1], &addr->a.val[4]);
-
-		/* The FICR value is a just a random number, with no knowledge
-		 * of the Bluetooth Specification requirements for random
-		 * static addresses.
-		 */
-		BT_ADDR_SET_STATIC(&addr->a);
-
-		addr->type = BT_ADDR_LE_RANDOM;
-		return 1;
-	}
-	return 0;
-}
-
-static int ble_init(struct device *unused)
-{
-	int err = 0;
-	nrf_lf_clock_cfg_t clock_cfg;
-
-#ifdef CONFIG_CLOCK_CONTROL_NRF_K32SRC_RC
-	clock_cfg.lf_clk_source = NRF_LF_CLOCK_SRC_RC;
-#elif CONFIG_CLOCK_CONTROL_NRF_K32SRC_XTAL
-	clock_cfg.lf_clk_source = NRF_LF_CLOCK_SRC_XTAL;
-#elif CONFIG_CLOCK_CONTROL_NRF_K32SRC_SYNTH
-	clock_cfg.lf_clk_source = NRF_LF_CLOCK_SRC_SYNTH;
-#else
-#error "Clock source is not defined"
-#endif
-
-#ifdef CONFIG_CLOCK_CONTROL_NRF_K32SRC_500PPM
-	clock_cfg.accuracy = NRF_LF_CLOCK_ACCURACY_500_PPM;
-#elif CONFIG_CLOCK_CONTROL_NRF_K32SRC_250PPM
-	clock_cfg.accuracy = NRF_LF_CLOCK_ACCURACY_250_PPM;
-#elif CONFIG_CLOCK_CONTROL_NRF_K32SRC_150PPM
-	clock_cfg.accuracy = NRF_LF_CLOCK_ACCURACY_150_PPM;
-#elif CONFIG_CLOCK_CONTROL_NRF_K32SRC_100PPM
-	clock_cfg.accuracy = NRF_LF_CLOCK_ACCURACY_100_PPM;
-#elif CONFIG_CLOCK_CONTROL_NRF_K32SRC_75PPM
-	clock_cfg.accuracy = NRF_LF_CLOCK_ACCURACY_75_PPM;
-#elif CONFIG_CLOCK_CONTROL_NRF_K32SRC_50PPM
-	clock_cfg.accuracy = NRF_LF_CLOCK_ACCURACY_50_PPM;
-#elif CONFIG_CLOCK_CONTROL_NRF_K32SRC_30PPM
-	clock_cfg.accuracy = NRF_LF_CLOCK_ACCURACY_30_PPM;
-#elif CONFIG_CLOCK_CONTROL_NRF_K32SRC_20PPM
-	clock_cfg.accuracy = NRF_LF_CLOCK_ACCURACY_20_PPM;
-#elif CONFIG_CLOCK_CONTROL_NRF_K32SRC_10PPM
-	clock_cfg.accuracy = NRF_LF_CLOCK_ACCURACY_10_PPM;
-#elif CONFIG_CLOCK_CONTROL_NRF_K32SRC_5PPM
-	clock_cfg.accuracy = NRF_LF_CLOCK_ACCURACY_5_PPM;
-#elif CONFIG_CLOCK_CONTROL_NRF_K32SRC_2PPM
-	clock_cfg.accuracy = NRF_LF_CLOCK_ACCURACY_2_PPM;
-#elif CONFIG_CLOCK_CONTROL_NRF_K32SRC_1PPM
-	clock_cfg.accuracy = NRF_LF_CLOCK_ACCURACY_1_PPM;
-#else
-#error "Clock accuracy is not defined"
-#endif
-
-#ifdef CONFIG_CLOCK_CONTROL_NRF_K32SRC_RC
-	clock_cfg.rc_ctiv = BLE_CONTROLLER_RECOMMENDED_RC_CTIV;
-	clock_cfg.rc_temp_ctiv = BLE_CONTROLLER_RECOMMENDED_RC_TEMP_CTIV;
-#else
-	clock_cfg.rc_ctiv = 0;
-	clock_cfg.rc_temp_ctiv = 0;
-#endif
-
-	err = ble_controller_init(blectlr_assertion_handler,
-				  &clock_cfg,
-				  BLE_CONTROLLER_PROCESS_IRQn
-		);
-	return err;
-}
-
-static int ble_enable(void)
-{
 	int err;
 	int required_memory;
 	ble_controller_cfg_t cfg;
@@ -500,6 +382,13 @@ static int ble_enable(void)
 		return -ENOMEM;
 	}
 
+	if (IS_ENABLED(CONFIG_BT_DATA_LEN_UPDATE)) {
+		err = ble_controller_support_dle();
+		if (err) {
+			return -ENOTSUP;
+		}
+	}
+
 	err = MULTITHREADING_LOCK_ACQUIRE();
 	if (!err) {
 		err = ble_controller_enable(host_signal,
@@ -510,84 +399,62 @@ static int ble_enable(void)
 		return err;
 	}
 
-	/* Start processing software interrupts. This enables, e.g., the flash
-	 * API to work without having to call bt_enable(), which in turn calls
-	 * hci_driver_open().
-	 *
-	 * FIXME: Here we possibly start dynamic behavior during initialization,
-	 * which in general is a bad thing.
-	 */
-	k_thread_create(&signal_thread_data, signal_thread_stack,
-			K_THREAD_STACK_SIZEOF(signal_thread_stack),
-			signal_thread, NULL, NULL, NULL,
-			K_PRIO_COOP(CONFIG_BLECTLR_PRIO), 0, K_NO_WAIT);
-
 	return 0;
 }
 
-ISR_DIRECT_DECLARE(ble_controller_radio_isr_wrapper)
+static const struct bt_hci_driver drv = {
+	.name = "Controller",
+	.bus = BT_HCI_DRIVER_BUS_VIRTUAL,
+	.open = hci_driver_open,
+	.send = hci_driver_send,
+};
+
+uint8_t bt_read_static_addr(struct bt_hci_vs_static_addr *addr)
 {
-	ble_controller_RADIO_IRQHandler();
+	if (((NRF_FICR->DEVICEADDR[0] != UINT32_MAX) ||
+	    ((NRF_FICR->DEVICEADDR[1] & UINT16_MAX) != UINT16_MAX)) &&
+	     (NRF_FICR->DEVICEADDRTYPE & 0x01)) {
+		sys_put_le32(NRF_FICR->DEVICEADDR[0], &addr->bdaddr.val[0]);
+		sys_put_le16(NRF_FICR->DEVICEADDR[1], &addr->bdaddr.val[4]);
 
-	ISR_DIRECT_PM();
+		/* The FICR value is a just a random number, with no knowledge
+		 * of the Bluetooth Specification requirements for random
+		 * static addresses.
+		 */
+		BT_ADDR_SET_STATIC(&addr->bdaddr);
 
-	/* We may need to reschedule in case a radio timeslot callback
-	 * accesses zephyr primitives.
-	 */
-	return 1;
-}
+		/* If no public address is provided and a static address is
+		 * available, then it is recommended to return an identity root
+		 * key (if available) from this command.
+		 */
+		if ((NRF_FICR->IR[0] != UINT32_MAX) &&
+		    (NRF_FICR->IR[1] != UINT32_MAX) &&
+		    (NRF_FICR->IR[2] != UINT32_MAX) &&
+		    (NRF_FICR->IR[3] != UINT32_MAX)) {
+			sys_put_le32(NRF_FICR->IR[0], &addr->ir[0]);
+			sys_put_le32(NRF_FICR->IR[1], &addr->ir[4]);
+			sys_put_le32(NRF_FICR->IR[2], &addr->ir[8]);
+			sys_put_le32(NRF_FICR->IR[3], &addr->ir[12]);
+		} else {
+			/* Mark IR as invalid */
+			(void)memset(addr->ir, 0x00, sizeof(addr->ir));
+		}
 
-ISR_DIRECT_DECLARE(ble_controller_rtc0_isr_wrapper)
-{
-	ble_controller_RTC0_IRQHandler();
+		return 1;
+	}
 
-	ISR_DIRECT_PM();
-
-	/* No need for rescheduling, because the interrupt handler
-	 * does not access zephyr primitives.
-	 */
 	return 0;
-}
-
-ISR_DIRECT_DECLARE(ble_controller_timer0_isr_wrapper)
-{
-	ble_controller_TIMER0_IRQHandler();
-
-	ISR_DIRECT_PM();
-
-	/* We may need to reschedule in case a radio timeslot callback
-	 * accesses zephyr primitives.
-	 */
-	return 1;
 }
 
 static int hci_driver_init(struct device *unused)
 {
 	ARG_UNUSED(unused);
+	int err = 0;
 
 	bt_hci_driver_register(&drv);
 
-	int err = 0;
-
-	err = ble_enable();
-
-	if (err < 0) {
-		return err;
-	}
-
-	IRQ_DIRECT_CONNECT(RADIO_IRQn, BLE_CONTROLLER_IRQ_PRIO_HIGH,
-			   ble_controller_radio_isr_wrapper, IRQ_ZERO_LATENCY);
-	IRQ_DIRECT_CONNECT(RTC0_IRQn, BLE_CONTROLLER_IRQ_PRIO_HIGH,
-			   ble_controller_rtc0_isr_wrapper, IRQ_ZERO_LATENCY);
-	IRQ_DIRECT_CONNECT(TIMER0_IRQn, BLE_CONTROLLER_IRQ_PRIO_HIGH,
-			   ble_controller_timer0_isr_wrapper, IRQ_ZERO_LATENCY);
-
-	IRQ_CONNECT(BLE_CONTROLLER_PROCESS_IRQn, BLE_CONTROLLER_IRQ_PRIO_LOW,
-		    SIGNALLING_Handler, NULL, 0);
-
-
-	return 0;
+	err = ble_controller_init(blectlr_assertion_handler);
+	return err;
 }
 
 SYS_INIT(hci_driver_init, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
-SYS_INIT(ble_init, PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);

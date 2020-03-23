@@ -1,1 +1,6 @@
+add_subdirectory_ifdef(CONFIG_DK_LIBRARY dk_buttons_and_leds)
 add_subdirectory_ifdef(CONFIG_MULTITHREADING_LOCK multithreading_lock)
+add_subdirectory_ifdef(CONFIG_FPROTECT fprotect)
+add_subdirectory(flash_patch)
+add_subdirectory_ifdef(CONFIG_RESET_ON_FATAL_ERROR fatal_error)
+add_subdirectory_ifdef(CONFIG_DATE_TIME date_time)

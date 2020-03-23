@@ -4,8 +4,7 @@
 #include <soc.h>
 #include <device.h>
 #include <drivers/gpio.h>
-#include <drivers/seesaw.h>
-#include <misc/util.h>
+#include <sys/util.h>
 
 #include "key_id.h"
 #include "gpio_pins.h"

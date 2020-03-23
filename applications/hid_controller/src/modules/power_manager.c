@@ -1,8 +1,8 @@
 #include <zephyr/types.h>
-#include <power.h>
+#include <power/power.h>
 
 #include <device.h>
-#include <gpio.h>
+#include <drivers/gpio.h>
 #include <hal/nrf_power.h>
 
 #include <profiler.h>
@@ -88,6 +88,11 @@ enum power_states sys_pm_policy_next_state(s32_t ticks)
 	return SYS_POWER_STATE_ACTIVE;
 }
 
+bool sys_pm_policy_low_power_devices(enum power_states pm_state)
+{
+	return sys_pm_is_sleep_state(pm_state);
+}
+
 static void system_off(void)
 {
 	if (power_state == POWER_STATE_ERROR_SUSPENDED) {
@@ -114,8 +119,7 @@ static void error(struct k_work *work)
 
 static bool event_handler(const struct event_header *eh)
 {
-	if ((IS_ENABLED(CONFIG_CONTROLLER_HID_MOUSE) && is_hid_mouse_event(eh)) ||
-	    (IS_ENABLED(CONFIG_CONTROLLER_HID_KEYBOARD) && is_hid_keyboard_event(eh))) {
+	if (is_hid_report_event(eh)) {
 		/* Device is connected and sends reports to host. */
 		power_down_counter_reset();
 
@@ -284,12 +288,6 @@ static bool event_handler(const struct event_header *eh)
 			k_delayed_work_init(&power_down_trigger, power_down);
 			k_delayed_work_submit(&power_down_trigger,
 					      POWER_DOWN_CHECK_MS);
-
-			if (IS_ENABLED(CONFIG_CONTROLLER_POWER_MANAGER_CONSTLAT)) {
-				nrf_power_task_trigger(NRF_POWER,
-						NRF_POWER_TASK_CONSTLAT);
-				LOG_WRN("Constant latency enabled");
-			}
 		} else if (event->state == MODULE_STATE_ERROR) {
 			power_state = POWER_STATE_ERROR;
 			k_delayed_work_cancel(&power_down_trigger);
@@ -312,7 +310,6 @@ EVENT_LISTENER(MODULE, event_handler);
 EVENT_SUBSCRIBE(MODULE, module_state_event);
 EVENT_SUBSCRIBE(MODULE, ble_peer_event);
 EVENT_SUBSCRIBE(MODULE, usb_state_event);
+EVENT_SUBSCRIBE(MODULE, hid_report_event);
 EVENT_SUBSCRIBE_EARLY(MODULE, wake_up_event);
-EVENT_SUBSCRIBE(MODULE, hid_mouse_event);
-EVENT_SUBSCRIBE(MODULE, hid_keyboard_event);
 EVENT_SUBSCRIBE_FINAL(MODULE, power_down_event);

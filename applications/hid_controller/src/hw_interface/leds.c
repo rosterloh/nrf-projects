@@ -1,6 +1,6 @@
 #include <zephyr.h>
 #include <assert.h>
-#include <pwm.h>
+#include <drivers/pwm.h>
 
 #include "power_event.h"
 #include "led_event.h"
@@ -32,9 +32,15 @@ static struct led leds[CONFIG_CONTROLLER_LED_COUNT];
 static void pwm_out(struct led *led, struct led_color *color)
 {
 	for (size_t i = 0; i < ARRAY_SIZE(color->c); i++) {
-		pwm_pin_set_usec(led->pwm_dev, led_pins[LED_ID(led)][i],
-				 CONFIG_CONTROLLER_LED_BRIGHTNESS_MAX,
-				 color->c[i]);
+		int err = pwm_pin_set_usec(led->pwm_dev,
+					   led_pins[LED_ID(led)][i],
+					   CONFIG_CONTROLLER_LED_BRIGHTNESS_MAX,
+					   color->c[i],
+					   0);
+
+		if (err) {
+			LOG_ERR("Cannot set PWM output (err: %d)", err);
+		}
 	}
 }
 

@@ -1,6 +1,7 @@
 manifest:
   defaults:
     remote: zephyrproject
+
   remotes:
     - name: zephyrproject
       url-base: https://github.com/zephyrproject-rtos
@@ -11,35 +12,27 @@ manifest:
 
   projects:
     - name: zephyr
-      revision: 847f4e6ae694001c6c8630b14eb3884dc6b3edec
+      revision: master
       west-commands: scripts/west-commands.yml
-    - name: ci-tools
-      revision: c083680dd5e281218ddb47d0ceac5c5fd5619749
-      path: tools/ci-tools
-    - name: hal_nordic
-      revision: 64f3473398f9fba11059dd0c7ae969e74f74f356
-      path: modules/hal/nordic
-    - name: mcumgr
-      revision: 84934959d2d1722a23b7e7e200191ae4a6f96168
-      path: modules/lib/mcumgr
-    - name: nffs
-      revision: bc62a2fa9d98ddb5d633c932ea199bc68e10f194
-      path: modules/fs/nffs
-    - name: openthread
-      revision: 882e7074b5986027b85cb4f3ba1dc563a11ca013
-      path: modules/lib/openthread
-    - name: segger
-      revision: 6fcf61606d6012d2c44129edc033f59331e268bc
-      path: modules/debug/segger
+      import:
+        name-whitelist:
+          - cmsis
+          - ci-tools
+          - hal_nordic
+          - hal_st
+          - hal_stm32
+          - lvgl
+          - mcuboot
+          - mcumgr
+          - nffs
+          - openthread
+          - segger
+          - littlefs
 
     - name: nrfxlib
-      revision: 562c6785b3ac863cc3d0a994d6f53c780a858891
+      revision: 037cb2339ef13e71f0600fcc111700efaf799d08
       path: nrfxlib
       remote: ncs
       
-    - name: mcuboot
-      revision: 4d0c5fa488b27dbbd3e3223574d594d7648e0a17
-
-
   self:
     path: nrf

@@ -11,19 +11,6 @@ config CONTROLLER_POWER_MANAGER_ENABLE
 
 if CONTROLLER_POWER_MANAGER_ENABLE
 
-config CONTROLLER_POWER_MANAGER_CONSTLAT
-	bool "Constant latency interrupts"
-	help
-	  When enabled SoC will use configuration for constant latency
-	  interrupts. This reduces interrupt propagation time but increases
-	  power consumption.
-
-config CONTROLLER_POWER_MANAGER_TIMEOUT
-	int "Power down timeout [s]"
-	default 120
-	help
-	  Time in seconds after which the device will enter low-power mode.
-
 config CONTROLLER_POWER_MANAGER_STAY_ON
 	bool "Stay on while no connections"
 	help
@@ -31,6 +18,12 @@ config CONTROLLER_POWER_MANAGER_STAY_ON
 	  manager timeout is done. If enabled the device will stay on
 	  but remain idle. If the device is connected it will always stay on
 	  and maintain the connection, regardless of the setting.
+
+config CONTROLLER_POWER_MANAGER_TIMEOUT
+	int "Power down timeout [s]"
+	default 120
+	help
+	  Time in seconds after which the device will enter low-power mode.
 
 config CONTROLLER_POWER_MANAGER_ERROR_TIMEOUT
 	int "Power manager timeout on error [s]"

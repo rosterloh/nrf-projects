@@ -31,7 +31,7 @@ LOG_MODULE_REGISTER(MODULE, CONFIG_CONTROLLER_BLE_ADV_LOG_LEVEL);
 #define PEER_IS_RPA_STORAGE_NAME "peer_is_rpa_"
 
 
-static const struct bt_data ad[] = {
+static const struct bt_data ad_unbonded[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
 	BT_DATA_BYTES(BT_DATA_UUID16_ALL,
 #if CONFIG_CONTROLLER_HIDS_ENABLE
@@ -52,6 +52,20 @@ static const struct bt_data ad[] = {
 #endif
 };
 
+static const struct bt_data ad_bonded[] = {
+	BT_DATA_BYTES(BT_DATA_FLAGS, BT_LE_AD_NO_BREDR),
+	BT_DATA_BYTES(BT_DATA_UUID16_ALL,
+#if CONFIG_CONTROLLER_HIDS_ENABLE
+			  0x12, 0x18,	/* HID Service */
+#endif
+#if CONFIG_CONTROLLER_BAS_ENABLE
+			  0x0f, 0x18,	/* Battery Service */
+#endif
+	),
+
+	BT_DATA(BT_DATA_NAME_SHORTENED, DEVICE_NAME, DEVICE_NAME_LEN),
+};
+
 
 enum state {
 	STATE_DISABLED,
@@ -61,6 +75,8 @@ enum state {
 	STATE_ACTIVE_SLOW,
 	STATE_ACTIVE_FAST_DIRECT,
 	STATE_ACTIVE_SLOW_DIRECT,
+	STATE_DELAYED_ACTIVE_FAST,
+	STATE_DELAYED_ACTIVE_SLOW,
 	STATE_GRACE_PERIOD
 };
 
@@ -91,6 +107,38 @@ enum peer_rpa {
 static enum peer_rpa peer_is_rpa[CONFIG_BT_ID_MAX];
 
 
+static int settings_set(const char *key, size_t len_rd,
+			settings_read_cb read_cb, void *cb_arg)
+{
+	/* Assuming ID is written as one digit */
+	if (!strncmp(key, PEER_IS_RPA_STORAGE_NAME,
+	     sizeof(PEER_IS_RPA_STORAGE_NAME) - 1)) {
+		char *end;
+		long int read_id = strtol(key + strlen(key) - 1, &end, 10);
+
+		if ((*end != '\0') || (read_id < 0) || (read_id >= CONFIG_BT_ID_MAX)) {
+			LOG_ERR("Identity is not a valid number");
+			return -ENOTSUP;
+		}
+
+		ssize_t len = read_cb(cb_arg, &peer_is_rpa[read_id],
+				  sizeof(peer_is_rpa[read_id]));
+
+		if ((len != sizeof(peer_is_rpa[read_id])) || (len != len_rd)) {
+			LOG_ERR("Can't read peer_is_rpa%ld from storage",
+				read_id);
+			return len;
+		}
+	}
+
+	return 0;
+}
+
+#ifdef CONFIG_CONTROLLER_BLE_DIRECT_ADV
+SETTINGS_STATIC_HANDLER_DEFINE(ble_adv, MODULE_NAME, NULL, settings_set, NULL,
+			       NULL);
+#endif /* CONFIG_CONTROLLER_BLE_DIRECT_ADV */
+
 static void broadcast_adv_state(bool active)
 {
 	struct ble_peer_search_event *event = new_ble_peer_search_event();
@@ -106,9 +154,7 @@ static int ble_adv_stop(void)
 	if (err) {
 		LOG_ERR("Cannot stop advertising (err %d)", err);
 	} else {
-		if (IS_ENABLED(CONFIG_CONTROLLER_BLE_FAST_ADV)) {
-			k_delayed_work_cancel(&adv_update);
-		}
+		k_delayed_work_cancel(&adv_update);
 		if (IS_ENABLED(CONFIG_CONTROLLER_BLE_SWIFT_PAIR) &&
 		    IS_ENABLED(CONFIG_CONTROLLER_POWER_MANAGER_ENABLE)) {
 			k_delayed_work_cancel(&sp_grace_period_to);
@@ -150,7 +196,7 @@ static int ble_adv_start_directed(const bt_addr_le_t *addr, bool fast_adv)
 	struct bt_conn *conn = bt_conn_create_slave_le(addr, &adv_param);
 
 	if (conn == NULL) {
-		return -EFAULT;
+		return -ENOMEM;
 	}
 
 	bt_conn_unref(conn);
@@ -164,7 +210,7 @@ static int ble_adv_start_directed(const bt_addr_le_t *addr, bool fast_adv)
 }
 
 static int ble_adv_start_undirected(const bt_addr_le_t *bond_addr,
-				    bool fast_adv, bool swift_pair)
+				    bool fast_adv)
 {
 	struct bt_le_adv_param adv_param = {
 		.options = BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_ONE_TIME |
@@ -189,6 +235,7 @@ static int ble_adv_start_undirected(const bt_addr_le_t *bond_addr,
 		}
 
 		if (bt_addr_le_cmp(bond_addr, BT_ADDR_LE_ANY)) {
+			adv_param.options |= BT_LE_ADV_OPT_FILTER_SCAN_REQ;
 			adv_param.options |= BT_LE_ADV_OPT_FILTER_CONN;
 			err = bt_le_whitelist_add(bond_addr);
 		}
@@ -200,13 +247,17 @@ static int ble_adv_start_undirected(const bt_addr_le_t *bond_addr,
 	}
 
 	adv_param.id = cur_identity;
-	size_t ad_size = ARRAY_SIZE(ad);
 
-	if (IS_ENABLED(CONFIG_CONTROLLER_BLE_SWIFT_PAIR)) {
-		adv_swift_pair = swift_pair;
-		if (!swift_pair) {
-			ad_size = ARRAY_SIZE(ad) - SWIFT_PAIR_SECTION_SIZE;
-		}
+	const struct bt_data *ad;
+	size_t ad_size;
+
+	if (bt_addr_le_cmp(bond_addr, BT_ADDR_LE_ANY)) {
+		ad = ad_bonded;
+		ad_size = ARRAY_SIZE(ad_bonded);
+	} else {
+		ad = ad_unbonded;
+		ad_size = ARRAY_SIZE(ad_unbonded);
+		adv_swift_pair = IS_ENABLED(CONFIG_CONTROLLER_BLE_SWIFT_PAIR);
 	}
 
 	return bt_le_adv_start(&adv_param, ad, ad_size, sd, ARRAY_SIZE(sd));
@@ -230,15 +281,12 @@ static int ble_adv_start(bool can_fast_adv)
 	}
 
 	bool direct = false;
-	bool swift_pair = true;
 
 	if (bond_find_data.peer_id < bond_find_data.peer_count) {
 		if (IS_ENABLED(CONFIG_CONTROLLER_BLE_DIRECT_ADV)) {
 			/* Direct advertising only to peer without RPA. */
 			direct = (peer_is_rpa[cur_identity] != PEER_RPA_YES);
 		}
-
-		swift_pair = false;
 	}
 
 	if (direct) {
@@ -246,10 +294,10 @@ static int ble_adv_start(bool can_fast_adv)
 					     fast_adv);
 	} else {
 		err = ble_adv_start_undirected(&bond_find_data.peer_address,
-					       fast_adv, swift_pair);
+					       fast_adv);
 	}
 
-	if (err == -ECONNREFUSED) {
+	if (err == -ECONNREFUSED || (err == -ENOMEM)) {
 		LOG_WRN("Already connected, do not advertise");
 		err = 0;
 		goto error;
@@ -259,13 +307,13 @@ static int ble_adv_start(bool can_fast_adv)
 	}
 
 	if (direct) {
-		if (IS_ENABLED(CONFIG_CONTROLLER_BLE_FAST_ADV)) {
+		if (fast_adv) {
 			state = STATE_ACTIVE_FAST_DIRECT;
 		} else {
 			state = STATE_ACTIVE_SLOW_DIRECT;
 		}
 	} else {
-		if (IS_ENABLED(CONFIG_CONTROLLER_BLE_FAST_ADV)) {
+		if (fast_adv) {
 			k_delayed_work_submit(&adv_update,
 					      K_SECONDS(CONFIG_CONTROLLER_BLE_FAST_ADV_TIMEOUT));
 			state = STATE_ACTIVE_FAST;
@@ -293,16 +341,16 @@ static void sp_grace_period_fn(struct k_work *work)
 
 static int remove_swift_pair_section(void)
 {
-	int err = bt_le_adv_update_data(ad, (ARRAY_SIZE(ad) - SWIFT_PAIR_SECTION_SIZE),
+	int err = bt_le_adv_update_data(ad_unbonded,
+					(ARRAY_SIZE(ad_unbonded) -
+					 SWIFT_PAIR_SECTION_SIZE),
 					sd, ARRAY_SIZE(sd));
 
 	if (!err) {
 		LOG_INF("Swift Pair section removed");
 		adv_swift_pair = false;
 
-		if (IS_ENABLED(CONFIG_CONTROLLER_BLE_FAST_ADV)) {
-			k_delayed_work_cancel(&adv_update);
-		}
+		k_delayed_work_cancel(&adv_update);
 
 		k_delayed_work_submit(&sp_grace_period_to,
 				      K_SECONDS(CONFIG_CONTROLLER_BLE_SWIFT_PAIR_GRACE_PERIOD));
@@ -324,72 +372,37 @@ static int remove_swift_pair_section(void)
 
 static void ble_adv_update_fn(struct k_work *work)
 {
-	__ASSERT_NO_MSG(state == STATE_ACTIVE_FAST);
+	bool can_fast_adv = false;
 
-	int err = ble_adv_start(false);
+	switch (state) {
+	case STATE_DELAYED_ACTIVE_FAST:
+		can_fast_adv = true;
+		break;
+
+	case STATE_ACTIVE_FAST:
+	case STATE_DELAYED_ACTIVE_SLOW:
+		break;
+
+	default:
+		/* Should not happen. */
+		__ASSERT_NO_MSG(false);
+	}
+
+	int err = ble_adv_start(can_fast_adv);
 
 	if (err) {
 		module_set_state(MODULE_STATE_ERROR);
 	}
 }
 
-static int settings_set(const char *key, size_t len_rd,
-			settings_read_cb read_cb, void *cb_arg)
-{
-	/* Assuming ID is written as one digit */
-	if (!strncmp(key, PEER_IS_RPA_STORAGE_NAME,
-	     sizeof(PEER_IS_RPA_STORAGE_NAME) - 1)) {
-		char *end;
-		long int read_id = strtol(key + strlen(key) - 1, &end, 10);
-
-		if ((*end != '\0') || (read_id < 0) || (read_id >= CONFIG_BT_ID_MAX)) {
-			LOG_ERR("Identity is not a valid number");
-			return -ENOTSUP;
-		}
-
-		ssize_t len = read_cb(cb_arg, &peer_is_rpa[read_id],
-				  sizeof(peer_is_rpa[read_id]));
-
-		if (len != sizeof(peer_is_rpa[read_id])) {
-			LOG_ERR("Can't read peer_is_rpa%ld from storage", read_id);
-			return len;
-		}
-	}
-
-	return 0;
-}
-
-static int init_settings(void)
-{
-	if (IS_ENABLED(CONFIG_SETTINGS) &&
-	    IS_ENABLED(CONFIG_CONTROLLER_BLE_DIRECT_ADV)) {
-		static struct settings_handler sh = {
-			.name = MODULE_NAME,
-			.h_set = settings_set,
-		};
-
-		int err = settings_register(&sh);
-		if (err) {
-			LOG_ERR("Cannot register settings handler (err %d)",
-				err);
-			return err;
-		}
-	}
-
-	return 0;
-}
-
 static void init(void)
 {
-	if (init_settings()) {
-		module_set_state(MODULE_STATE_ERROR);
-		return;
+	/* These things will be opt-out by the compiler. */
+	if (!IS_ENABLED(CONFIG_CONTROLLER_BLE_DIRECT_ADV)) {
+		ARG_UNUSED(settings_set);
 	}
 
-	if (IS_ENABLED(CONFIG_CONTROLLER_BLE_FAST_ADV)) {
-		k_delayed_work_init(&adv_update, ble_adv_update_fn);
-	}
-
+	k_delayed_work_init(&adv_update, ble_adv_update_fn);
 	if (IS_ENABLED(CONFIG_CONTROLLER_BLE_SWIFT_PAIR) &&
 	    IS_ENABLED(CONFIG_CONTROLLER_POWER_MANAGER_ENABLE)) {
 		k_delayed_work_init(&sp_grace_period_to, sp_grace_period_fn);
@@ -484,7 +497,11 @@ static bool event_handler(const struct event_header *eh)
 
 		case PEER_STATE_CONN_FAILED:
 			if (state != STATE_OFF) {
-				err = ble_adv_start(can_fast_adv);
+				state = can_fast_adv ?
+					STATE_DELAYED_ACTIVE_FAST :
+					STATE_DELAYED_ACTIVE_SLOW;
+
+				k_delayed_work_submit(&adv_update, 0);
 			}
 			break;
 
@@ -588,6 +605,8 @@ static bool event_handler(const struct event_header *eh)
 				}
 				break;
 
+			case STATE_DELAYED_ACTIVE_FAST:
+			case STATE_DELAYED_ACTIVE_SLOW:
 			case STATE_ACTIVE_FAST_DIRECT:
 			case STATE_ACTIVE_SLOW_DIRECT:
 				err = ble_adv_stop();
@@ -646,6 +665,8 @@ static bool event_handler(const struct event_header *eh)
 			case STATE_ACTIVE_SLOW:
 			case STATE_ACTIVE_FAST_DIRECT:
 			case STATE_ACTIVE_SLOW_DIRECT:
+			case STATE_DELAYED_ACTIVE_FAST:
+			case STATE_DELAYED_ACTIVE_SLOW:
 			case STATE_DISABLED:
 				/* No action */
 				break;

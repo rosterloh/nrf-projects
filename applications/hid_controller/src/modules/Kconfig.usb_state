@@ -1,0 +1,20 @@
+if USB_DEVICE_HID
+
+menu "USB state"
+
+config CONTROLLER_USB_ENABLE
+	bool "Enable USB module"
+	help
+	  Enables USB module.
+
+if CONTROLLER_USB_ENABLE
+
+module = CONTROLLER_USB_STATE
+module-str = USB state
+source "subsys/logging/Kconfig.template.log_config"
+
+endif
+
+endmenu
+
+endif

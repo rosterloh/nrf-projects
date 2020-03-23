@@ -30,4 +30,15 @@ zephyr_library_sources_ifdef(CONFIG_BT_MESH_LOC_CLI gen_loc_cli.c)
 zephyr_library_sources_ifdef(CONFIG_BT_MESH_PROP_SRV gen_prop_srv.c)
 zephyr_library_sources_ifdef(CONFIG_BT_MESH_PROP_CLI gen_prop_cli.c)
 
+zephyr_library_sources_ifdef(CONFIG_BT_MESH_LIGHTNESS_SRV lightness_srv.c)
+zephyr_library_sources_ifdef(CONFIG_BT_MESH_LIGHTNESS_CLI lightness_cli.c)
+
 zephyr_library_sources_ifdef(CONFIG_BT_MESH_DK_PROV dk_prov.c)
+
+zephyr_library_sources_ifdef(CONFIG_BT_MESH_SENSOR_SRV sensor_srv.c)
+zephyr_library_sources_ifdef(CONFIG_BT_MESH_SENSOR_CLI sensor_cli.c)
+
+zephyr_library_sources_ifdef(CONFIG_BT_MESH_SENSOR sensor_types.c)
+zephyr_library_sources_ifdef(CONFIG_BT_MESH_SENSOR sensor.c)
+
+zephyr_linker_sources(SECTIONS sensor_types.ld)
