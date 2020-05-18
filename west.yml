@@ -18,21 +18,28 @@ manifest:
         name-whitelist:
           - cmsis
           - ci-tools
+          - esp-idf
           - hal_nordic
           - hal_st
           - hal_stm32
+          - libmetal
           - lvgl
+          - mbedtls
           - mcuboot
           - mcumgr
-          - nffs
-          - openthread
+          - net-tools
+          - open-amp
           - segger
+          - tinycbor
+          - tinycrypt
           - littlefs
+          - nrf_hw_models
+          - hal_xtensa
 
     - name: nrfxlib
-      revision: 037cb2339ef13e71f0600fcc111700efaf799d08
+      revision: 588bf3474c4b60de5aa51604bf88bd86262b5e4c
       path: nrfxlib
       remote: ncs
-      
+
   self:
     path: nrf

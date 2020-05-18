@@ -1,0 +1,43 @@
+/ {
+	gpio_keys {
+		compatible = "gpio-keys";
+		button_a: btn_a {
+			label = "A";
+			gpios = <&feather_header 16 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		};
+		button_b: btn_b {
+			label = "B";
+			gpios = <&feather_header 15 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		};
+		button_c: btn_c {
+			label = "C";
+			gpios = <&feather_header 14 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+		};
+	};
+
+	aliases {
+		swa = &button_a;
+		swb = &button_b;
+		swc = &button_c;
+	};
+};
+
+&feather_i2c {
+	status = "okay";
+
+	ssd1306@3c {
+		compatible = "solomon,ssd1306fb";
+		reg = <0x3c>;
+		label = "SSD1306";
+		width = <128>;
+		height = <32>;
+		segment-offset = <0>;
+		page-offset = <0>;
+		display-offset = <0>;
+		multiplex-ratio = <31>;
+		segment-remap;
+		com-invdir;
+		com-sequential;
+		prechargep = <0x22>;
+	};
+};

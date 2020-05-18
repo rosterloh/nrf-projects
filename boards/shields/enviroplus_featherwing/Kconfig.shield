@@ -1,0 +1,2 @@
+config SHIELD_ENVIROPLUS_FEATHERWING
+	def_bool $(shields_list_contains,enviroplus_featherwing)

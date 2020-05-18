@@ -16,8 +16,8 @@ static int log_ble_peer_event(const struct event_header *eh, char *buf,
 {
 	const struct ble_peer_event *event = cast_ble_peer_event(eh);
 
-	BUILD_ASSERT_MSG(ARRAY_SIZE(state_name) == PEER_STATE_COUNT,
-			 "Invalid number of elements");
+	BUILD_ASSERT(ARRAY_SIZE(state_name) == PEER_STATE_COUNT,
+		     "Invalid number of elements");
 
 	__ASSERT_NO_MSG(event->state < PEER_STATE_COUNT);
 
@@ -83,8 +83,8 @@ static int log_ble_peer_operation_event(const struct event_header *eh,
 	const struct ble_peer_operation_event *event =
 		cast_ble_peer_operation_event(eh);
 
-	BUILD_ASSERT_MSG(ARRAY_SIZE(op_name) == PEER_OPERATION_COUNT,
-			 "Invalid number of elements");
+	BUILD_ASSERT(ARRAY_SIZE(op_name) == PEER_OPERATION_COUNT,
+		     "Invalid number of elements");
 
 	__ASSERT_NO_MSG(event->op < PEER_OPERATION_COUNT);
 

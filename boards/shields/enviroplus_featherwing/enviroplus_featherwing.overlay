@@ -1,0 +1,43 @@
+&feather_i2c {
+	status = "okay";
+
+	bme280@77 {
+		compatible = "bosch,bme280";
+		reg = <0x77>;
+		label = "BME280";
+	};
+}
+
+&feather_spi {
+	status = "okay";
+
+	cs-gpios = <&feather_header 15 0>;	/* D6 */
+
+	st7735a@0 {
+		compatible = "sitronix,st7789v";
+		label = "ST7735A";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+		cmd-data-gpios = <&feather_header 14 GPIO_ACTIVE_LOW>;	/* D5 */
+		reset-gpios = <&feather_header 16 GPIO_ACTIVE_LOW>;	/* D9 */
+		width = <160>;
+		height = <80>;
+		x-offset = <26>;
+		y-offset = <1>;
+		vcom = <0x2b>;
+		gctrl = <0x35>;
+		vrhs = <0x0f>;
+		vdvs = <0x20>;
+		mdac = <0x60>;
+		gamma = <0x01>;
+		colmod = <0x05>;
+		lcm = <0x2c>;
+		porch-param = [0c 0c 00 33 33];
+		cmd2en-param = [5a 69 02 01];
+		pwctrl1-param = [02 70];
+		pvgam-param = [D0 00 02 07 0B 1A 31 54 40 29 12 12 12 17];
+		nvgam-param = [D0 00 02 07 05 15 2D 44 44 1C 18 16 1C 1D];
+		ram-param = [00 F8];
+		rgb-param = [CD 08 14];
+	};
+}

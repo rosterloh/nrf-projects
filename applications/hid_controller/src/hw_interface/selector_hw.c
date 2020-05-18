@@ -257,10 +257,10 @@ static int init(void)
 {
 	int err = 0;
 
-	BUILD_ASSERT_MSG(ARRAY_SIZE(selector_config) <= UCHAR_MAX,
-			 "Maximum number of selectors is 255");
-	BUILD_ASSERT_MSG(ARRAY_SIZE(selector_config) > 0,
-			 "There is no active selector");
+	BUILD_ASSERT(ARRAY_SIZE(selector_config) <= UCHAR_MAX,
+		     "Maximum number of selectors is 255");
+	BUILD_ASSERT(ARRAY_SIZE(selector_config) > 0,
+		     "There is no active selector");
 
 	for (size_t i = 0; i < ARRAY_SIZE(port_map); i++) {
 		if (!port_map[i]) {

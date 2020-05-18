@@ -9,12 +9,12 @@ function(preprocess_pm_yml in_file out_file)
     COMMAND ${CMAKE_C_COMPILER}
     -x assembler-with-cpp
     -nostdinc
-    -I${PROJECT_BINARY_DIR}/include/generated
+    -I${ZEPHYR_BINARY_DIR}/include/generated
     ${NOSYSDEF_CFLAG}
     -P
     -E ${in_file}
     -o ${out_file}
-    WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+    WORKING_DIRECTORY ${ZEPHYR_BINARY_DIR}
     RESULT_VARIABLE ret
     )
   if(NOT "${ret}" STREQUAL "0")
@@ -43,24 +43,29 @@ if((EXISTS ${CMAKE_SOURCE_DIR}/pm.yml) AND IMAGE_NAME)
 
   preprocess_pm_yml(
     ${CMAKE_SOURCE_DIR}/pm.yml
-    ${PROJECT_BINARY_DIR}/include/generated/pm.yml
+    ${ZEPHYR_BINARY_DIR}/include/generated/pm.yml
     )
 endif()
 
-get_property(img_pm_subsys GLOBAL PROPERTY PM_SUBSYS)
-if (img_pm_subsys)
-  foreach (subsys_pm_yml ${img_pm_subsys})
-    file(RELATIVE_PATH rel_path_to_yml ${ZEPHYR_BASE} ${subsys_pm_yml})
-    set(subsys_pm_preprocessed
-      ${PROJECT_BINARY_DIR}/${rel_path_to_yml})
+# Check for partition manager configurations defined by subsystems
+# This is a list of absolute paths to these pm.yml files.
+get_property(pm_yml_paths GLOBAL PROPERTY PM_SUBSYS_PATH)
+if (pm_yml_paths)
+  # Each entry in the list has a corresponding entry with the output
+  # path in the build directory for the pm.yml file.
+  get_property(output_pm_yml_paths GLOBAL PROPERTY PM_SUBSYS_OUTPUT_PATH)
+  foreach (pm_yml_path ${pm_yml_paths})
+    list(GET output_pm_yml_paths 0 output_pm_yml_path)
+    list(REMOVE_AT output_pm_yml_paths 0)
+
     preprocess_pm_yml(
-      ${subsys_pm_yml}
-      ${subsys_pm_preprocessed}
+      ${pm_yml_path}
+      ${output_pm_yml_path}/pm.yml
       )
-  set_property(
-    GLOBAL APPEND PROPERTY
-    PM_SUBSYS_PREPROCESSED
-      ${subsys_pm_preprocessed}
-    )
+    set_property(
+      GLOBAL APPEND PROPERTY
+      PM_SUBSYS_PREPROCESSED
+      ${output_pm_yml_path}/pm.yml
+      )
   endforeach()
 endif()

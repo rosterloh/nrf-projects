@@ -1,0 +1,12 @@
+menu "Hardware interface modules"
+
+rsource "Kconfig.buttons"
+rsource "Kconfig.leds"
+rsource "Kconfig.battery_charger"
+rsource "Kconfig.battery_meas"
+
+module = MESH_SENSOR_BOARD
+module-str = board module
+source "subsys/logging/Kconfig.template.log_config"
+
+endmenu

@@ -1,0 +1,2 @@
+rsource "Kconfig.usb_state"
+rsource "Kconfig.settings_loader"

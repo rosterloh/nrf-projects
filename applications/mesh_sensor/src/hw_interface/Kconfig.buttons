@@ -1,0 +1,53 @@
+menu "Buttons configuration"
+
+choice
+	prompt "Select buttons interface"
+	default MESH_SENSOR_BUTTONS_NONE
+
+config MESH_SENSOR_BUTTONS_NONE
+	bool "Disable buttons"
+
+config MESH_SENSOR_BUTTONS_ENABLE
+	bool "Buttons scanned from directly connected GPIO"
+
+endchoice
+
+config MESH_SENSOR_BUTTONS_SCAN_INTERVAL
+	int "Buttons scan interval in ms"
+	depends on MESH_SENSOR_BUTTONS_ENABLE
+	default 2
+	help
+	  Interval at which key matrix is scanned.
+
+config MESH_SENSOR_BUTTONS_DEBOUNCE_INTERVAL
+	int "Interval before first button scan in ms"
+	depends on MESH_SENSOR_BUTTONS_ENABLE
+	default 2
+	help
+	  Interval before first scan. Introduced for debouncing reasons.
+
+config MESH_SENSOR_BUTTONS_POLARITY_INVERSED
+	bool "Inverse buttons polarity"
+	depends on MESH_SENSOR_BUTTONS_ENABLE
+	help
+	  When this option is enabled, button is pressed when the GPIO state
+	  is low.
+
+config MESH_SENSOR_BUTTONS_EVENT_LIMIT
+	int "Number of button events in single scan loop"
+	depends on MESH_SENSOR_BUTTONS_ENABLE
+	default 4
+	range 0 255
+	help
+	  This option specifies the number of button events generated during
+	  a single scanning loop. If more keys change state between scanning
+	  intervals, subsequent changes will be ignored and picked up during
+	  the next scanning.
+
+if !MESH_SENSOR_BUTTONS_NONE
+module = MESH_SENSOR_BUTTONS
+module-str = buttons module
+source "subsys/logging/Kconfig.template.log_config"
+endif
+
+endmenu

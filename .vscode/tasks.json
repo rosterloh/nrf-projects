@@ -7,18 +7,23 @@
             "label": "Build Application",
             "type": "shell",
             "command": "west build -b ${input:boardName} -d build/${input:boardName} ${input:appName} -- -DCMAKE_BUILD_TYPE=${input:buildType}",
-            "options": {
-                "env": {
-                    "ZEPHYR_TOOLCHAIN_VARIANT": "zephyr",
-                    "GNUARMEMB_TOOLCHAIN_PATH": "/opt/gcc-arm-none-eabi",
-                    "ZEPHYR_SDK_INSTALL_DIR": "/opt/zephyr-sdk"
+            "linux": {
+                "options": {
+                    "env": {
+                        "ZEPHYR_TOOLCHAIN_VARIANT": "zephyr",
+                        "GNUARMEMB_TOOLCHAIN_PATH": "/opt/gcc-arm-none-eabi",
+                        "ZEPHYR_SDK_INSTALL_DIR": "/opt/zephyr-sdk"
+                    }
                 }
             },
             "windows": {
                 "options": {
                     "env": {
                         "ZEPHYR_TOOLCHAIN_VARIANT": "gnuarmemb",
+                        // "ZEPHYR_TOOLCHAIN_VARIANT": "espressif",
                         "GNUARMEMB_TOOLCHAIN_PATH": "C:\\gnu_arm_embedded",
+                        "ESPRESSIF_TOOLCHAIN_PATH": "C:\\Users\\richa\\.platformio\\packages\\toolchain-xtensa32",
+                        "ESP_IDF_PATH": "${workspaceFolder}/../modules/hal/esp-idf"
                     }
                 }
             },
@@ -50,9 +55,25 @@
             "problemMatcher": []
         },
         {
+            "label": "Flash ESP32",
+            "type": "shell",
+            "command": "west flash -d build/esp32 --esp-tool C:/Users/richa/AppData/Roaming/Python/Python38/Scripts/esptool.py --esp-device ${input:serialPort}",
+            "group": "build",
+            "presentation": {
+                "group": "monitor"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "Debug",
             "type": "shell",
             "command": "west debug",
+            "problemMatcher": []
+        },
+        {
+            "label": "Update",
+            "type": "shell",
+            "command": "west update",
             "problemMatcher": []
         },
         {
@@ -94,14 +115,28 @@
             "id": "boardName",
             "type": "pickString",
             "description": "Device to build for",
-            "options": ["nrf52_adafruit_feather", "nrf52840_pca10056"],
+            "options": [
+                "adafruit_feather_stm32f405",
+                "nrf52_adafruit_feather",
+                "nrf52840_pca10056",
+                "particle_argon",
+                "thingy52_nrf52832",
+                "esp32"
+            ],
             "default": "nrf52_adafruit_feather"
         },
         {
             "id": "appName",
             "type": "pickString",
             "description": "Project to build",
-            "options": ["applications/hid_controller", "applications/mesh_leds", "applications/mesh_controller"],
+            "options": [
+                "applications/hid_controller",
+                "applications/mesh_leds",
+                "applications/mesh_bridge",
+                "applications/mesh_controller",
+                "applications/mesh_sensor",
+                "applications/network_sensor"
+            ],
             "default": "applications/hid_controller"
         },
         {
@@ -121,8 +156,14 @@
             "id": "debugAdapter",
             "type": "pickString",
             "description": "Type of debug adapter attached",
-            "options": ["nrfjprog", "jlink", "pyocd", "openocd"],
-            "default": "jlink"
+            "options": [
+                "nrfjprog",
+                "jlink",
+                "pyocd",
+                "openocd",
+                "dfu-util"
+            ],
+            "default": "nrfjprog"
         }
     ]
 }

@@ -1,0 +1,63 @@
+menu "Battery charger configuration"
+
+choice
+	prompt "Select battery charging interface"
+	default MESH_SENSOR_BATTERY_CHARGER_NONE
+
+config MESH_SENSOR_BATTERY_CHARGER_NONE
+	bool "No battery charging"
+
+config MESH_SENSOR_BATTERY_CHARGER_DISCRETE
+	bool "Discrete battery charger"
+
+endchoice
+
+config MESH_SENSOR_BATTERY_CHARGER_CSO_PIN
+	int "Charging status pin"
+	depends on MESH_SENSOR_BATTERY_CHARGER_DISCRETE
+	help
+	  A pin number to which CSO output is connected.
+
+choice
+	prompt "Select CSO pin pull"
+	default MESH_SENSOR_BATTERY_CHARGER_CSO_PULL_NONE
+
+config MESH_SENSOR_BATTERY_CHARGER_CSO_PULL_NONE
+	bool "Disable CSO pin pull"
+
+config MESH_SENSOR_BATTERY_CHARGER_CSO_PULL_UP
+	bool "Enable CPO pin pull up"
+
+config MESH_SENSOR_BATTERY_CHARGER_CSO_PULL_DOWN
+	bool "Enable CSO pin pull down"
+
+endchoice
+
+config MESH_SENSOR_BATTERY_CHARGER_ENABLE_PIN
+	int "Battery charging enable pin"
+	depends on MESH_SENSOR_BATTERY_CHARGER_DISCRETE
+	help
+	  A pin which enables battery charging.
+
+config MESH_SENSOR_BATTERY_CHARGER_ENABLE_INVERSED
+	bool "Inverse charging enable signal"
+	depends on MESH_SENSOR_BATTERY_CHARGER_DISCRETE
+	help
+	  Set this option if battery is charged when enable signal
+	  is set to zero.
+
+config MESH_SENSOR_BATTERY_CHARGER_CSO_FREQ
+	int "CSO switching frequency (in Hz) on error state"
+	depends on MESH_SENSOR_BATTERY_CHARGER_DISCRETE
+	default 1000
+	help
+	  A frequency with which CSO pin switches state when charging
+	  error occurs.
+
+if !MESH_SENSOR_BATTERY_NONE
+module = MESH_SENSOR_BATTERY_CHARGER
+module-str = battery charger module
+source "subsys/logging/Kconfig.template.log_config"
+endif
+
+endmenu

@@ -1,0 +1,11 @@
+if MESH_SENSOR_LED_ENABLE
+
+menu "LED state"
+
+module = MESH_SENSOR_LED_STATE
+module-str = LED state
+source "subsys/logging/Kconfig.template.log_config"
+
+endmenu
+
+endif

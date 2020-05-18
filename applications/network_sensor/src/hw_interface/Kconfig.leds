@@ -1,0 +1,27 @@
+menu "LEDs configuration"
+
+config NW_SNS_LED_ENABLE
+	bool "Enable LED hardware interface"
+
+config NW_SNS_LED_COUNT
+	int "Number of LEDs in use"
+	depends on NW_SNS_LED_ENABLE
+	default 0
+
+config NW_SNS_LED_COLOUR_COUNT
+	int "Number of colour channels per diode"
+	depends on NW_SNS_LED_ENABLE
+	default 3
+
+config NW_SNS_LED_BRIGHTNESS_MAX
+	int "Maximum value for LED brightness"
+	depends on NW_SNS_LED_ENABLE
+	default 255
+
+if NW_SNS_LED_ENABLE
+module = NW_SNS_LED
+module-str = LED module
+source "subsys/logging/Kconfig.template.log_config"
+endif
+
+endmenu

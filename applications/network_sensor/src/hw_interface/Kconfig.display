@@ -1,0 +1,36 @@
+menu "Display configuration"
+
+choice
+	prompt "Select display interface"
+	default NW_SNS_DISPLAY_NONE
+
+config NW_SNS_DISPLAY_NONE
+	bool "Disable display"
+
+config NW_SNS_DISPLAY_TEXT
+	bool "Display is a character display"
+        select DISPLAY
+        select CHARACTER_FRAMEBUFFER
+        select CHARACTER_FRAMEBUFFER_SHELL if SHELL
+
+config NW_SNS_DISPLAY_GRAPHICS
+	bool "Display is a full graphic display"
+        select DISPLAY
+        select LVGL
+#        select LVGL_DISPLAY_DEV_NAME="SSD1306"
+#        select LVGL_HOR_RES=128
+#        select LVGL_VER_RES=32
+#        select LVGL_VDB_SIZE=64
+#        select LVGL_DPI=148
+#        select LVGL_BITS_PER_PIXEL=1
+#        select LVGL_COLOR_DEPTH_1
+
+endchoice
+
+if !NW_SNS_DISPLAY_NONE
+module = NW_SNS_DISPLAY
+module-str = display module
+source "subsys/logging/Kconfig.template.log_config"
+endif
+
+endmenu

@@ -4,33 +4,23 @@
 # SPDX-License-Identifier: LicenseRef-BSD-5-Clause-Nordic
 #
 
-function(add_overlay_config image overlay_file)
-  set(old_conf ${${image}OVERLAY_CONFIG})
-  string(FIND "${old_conf}" "${overlay_file}" found)
-  if (${found} EQUAL -1)
-    set(${image}OVERLAY_CONFIG
-      "${old_conf} ${overlay_file}"
-      CACHE STRING "" FORCE)
-  endif()
-endfunction()
-
 # This CMakeLists.txt is executed by the root application only when
 # B0 (SECURE_BOOT) is enabled. First, figure out what image will be
 # booted by B0, and set the required properties for that image to be
 # bootable by B0.
 
 if (CONFIG_BOOTLOADER_MCUBOOT)
-  set(image_to_boot mcuboot_)
+  set(image_to_boot mcuboot)
 
   add_overlay_config(
-    mcuboot_
+    mcuboot
     ${CMAKE_CURRENT_SOURCE_DIR}/multi_image_mcuboot.conf
     )
 
 else()
 
   if (CONFIG_SPM)
-    set(image_to_boot spm_)
+    set(image_to_boot spm)
   endif()
 endif()
 
@@ -45,25 +35,37 @@ else()
   assert(CONFIG_FW_INFO "CONFIG_FW_INFO must be set")
 endif()
 
+if (DEFINED CONFIG_SB_MONOTONIC_COUNTER)
+  set(monotonic_counter_arg
+    --num-counter-slots-version ${CONFIG_SB_NUM_VER_COUNTER_SLOTS})
+endif()
+
 # Build and include hex file containing provisioned data for the bootloader.
 set(NRF_SCRIPTS            ${NRF_DIR}/scripts)
 set(NRF_BOOTLOADER_SCRIPTS ${NRF_SCRIPTS}/bootloader)
 set(PROVISION_HEX_NAME     provision.hex)
 set(PROVISION_HEX          ${PROJECT_BINARY_DIR}/${PROVISION_HEX_NAME})
 
-include(${CMAKE_CURRENT_LIST_DIR}/../cmake/debug_keys.cmake)
-include(${CMAKE_CURRENT_LIST_DIR}/../cmake/sign.cmake)
+if (CONFIG_SB_VALIDATE_FW_SIGNATURE)
+  include(${CMAKE_CURRENT_LIST_DIR}/../cmake/debug_keys.cmake)
+  include(${CMAKE_CURRENT_LIST_DIR}/../cmake/sign.cmake)
 
-if (${CONFIG_SB_DEBUG_SIGNATURE_PUBLIC_KEY_LAST})
-  set(ALL_PUBLIC_KEY_FILES "${PUBLIC_KEY_FILES},${SIGNATURE_PUBLIC_KEY_FILE}")
-  message(WARNING
-    "
+  if (${CONFIG_SB_DEBUG_SIGNATURE_PUBLIC_KEY_LAST})
+    set(public_keys_file_arg
+      --public-key-files "${PUBLIC_KEY_FILES},${SIGNATURE_PUBLIC_KEY_FILE}"
+      )
+    message(WARNING
+      "
       -----------------------------------------------------------------
       --- WARNING: SB_DEBUG_SIGNATURE_PUBLIC_KEY_LAST is enabled.   ---
       --- This config should only be enabled for testing/debugging. ---
       -----------------------------------------------------------------")
-else()
-  set(ALL_PUBLIC_KEY_FILES "${SIGNATURE_PUBLIC_KEY_FILE},${PUBLIC_KEY_FILES}")
+    else()
+      set(public_keys_file_arg
+        --public-key-files "${SIGNATURE_PUBLIC_KEY_FILE},${PUBLIC_KEY_FILES}"
+        )
+    endif()
+  set(PROVISION_DEPENDS signature_public_key_file_target)
 endif()
 
 add_custom_command(
@@ -75,8 +77,10 @@ add_custom_command(
   --s0-addr $<TARGET_PROPERTY:partition_manager,PM_S0_ADDRESS>
   --s1-addr $<TARGET_PROPERTY:partition_manager,PM_S1_ADDRESS>
   --provision-addr $<TARGET_PROPERTY:partition_manager,PM_PROVISION_ADDRESS>
-  --public-key-files ${ALL_PUBLIC_KEY_FILES}
+  ${public_keys_file_arg}
   --output ${PROVISION_HEX}
+  ${monotonic_counter_arg}
+  --max-size ${CONFIG_PM_PARTITION_SIZE_PROVISION}
   DEPENDS
   ${PROVISION_KEY_DEPENDS}
   WORKING_DIRECTORY
@@ -90,7 +94,7 @@ add_custom_target(
   provision_target
   DEPENDS
   ${PROVISION_HEX}
-  signature_public_key_file_target
+  ${PROVISION_DEPENDS}
   )
 
 get_property(

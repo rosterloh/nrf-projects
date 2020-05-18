@@ -1,0 +1,34 @@
+&i2c1 {
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_FAST>;
+
+	bme280@77 {
+		compatible = "bosch,bme280";
+		reg = <0x77>;
+		label = "BME280";
+	};
+};
+/*
+&spi2 {
+	status = "okay";
+	dmas = <&dma1 4 3 0x28440 0x03
+		&dma1 3 3 0x28480 0x03>;
+	dma-names = "tx", "rx";
+};
+
+&dma1 {
+	status = "okay";
+};
+*/
+&gd25q16 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "storage";
+			reg = <0x00000000 0x00200000>;
+		};
+	};
+};

@@ -1,0 +1,76 @@
+menu "Buttons configuration"
+
+choice
+	prompt "Select buttons interface"
+	default NW_SNS_BUTTONS_NONE
+
+config NW_SNS_BUTTONS_NONE
+	bool "Disable buttons"
+
+config NW_SNS_BUTTONS_ENABLE
+	bool "Buttons scanned from key matrix or directly connected GPIO"
+
+endchoice
+
+config NW_SNS_BUTTONS_SCAN_INTERVAL
+	int "Buttons scan interval in ms"
+	depends on NW_SNS_BUTTONS_ENABLE
+	default 2
+	help
+	  Interval at which key matrix is scanned.
+
+config NW_SNS_BUTTONS_DEBOUNCE_INTERVAL
+	int "Interval before first button scan in ms"
+	depends on NW_SNS_BUTTONS_ENABLE
+	default 2
+	help
+	  Interval before first scan. Introduced for debouncing reasons.
+
+config NW_SNS_BUTTONS_POLARITY_INVERSED
+	bool "Inverse buttons polarity"
+	depends on NW_SNS_BUTTONS_ENABLE
+	help
+	  When this option is enabled, button is pressed when the GPIO state
+	  is low.
+
+config NW_SNS_BUTTONS_EVENT_LIMIT
+	int "Number of button events in single scan loop"
+	depends on NW_SNS_BUTTONS_ENABLE
+	default 4
+	range 0 255
+	help
+	  This option specifies the number of button events generated during
+	  a single scanning loop. If more keys change state between scanning
+	  intervals, subsequent changes will be ignored and picked up during
+	  the next scanning.
+
+config NW_SNS_BUTTONS_SIM_ENABLE
+	bool "Enable simulated button presses generator"
+	depends on !NW_SNS_BUTTONS_NONE
+
+config NW_SNS_BUTTONS_SIM_INTERVAL
+	int "Interval between subsequent simulated button presses [ms]"
+	depends on NW_SNS_BUTTONS_SIM_ENABLE
+	default 1000
+	range 1 60000
+
+config NW_SNS_BUTTONS_SIM_LOOP_FOREVER
+	bool "Generate buttons in infinite loop"
+	depends on NW_SNS_BUTTONS_SIM_ENABLE
+	help
+	  When this option is disabled sequence of buttons is generated once.
+	  Enabling this option makes the sequence start from the beginning
+	  after it ends.
+
+config NW_SNS_BUTTONS_SIM_TRIGGER_KEY_ID
+	hex "Button used to start/stop generating button presses"
+	depends on NW_SNS_BUTTONS_SIM_ENABLE
+	default 0x0000
+
+if !NW_SNS_BUTTONS_NONE
+module = NW_SNS_BUTTONS
+module-str = buttons module
+source "subsys/logging/Kconfig.template.log_config"
+endif
+
+endmenu

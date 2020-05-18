@@ -2,30 +2,8 @@
 set(MCUBOOT_DIR ${ZEPHYR_BASE}/../bootloader/mcuboot)
 
 if(CONFIG_BOOTLOADER_MCUBOOT)
-  function(generate_dfu_zip zip_out bin_file_list deps)
-    set(generate_zip_script
-      ${ZEPHYR_BASE}/../nrf/scripts/bootloader/generate_zip.py)
-    add_custom_command(
-      COMMAND
-      ${PYTHON_EXECUTABLE}
-      ${generate_zip_script}
-      --bin-files ${bin_file_list}
-      --output ${zip_out}
-      ${ARGN}
-      "board=${CONFIG_BOARD}"
-      "soc=${CONFIG_SOC}"
-      DEPENDS
-      ${deps}
-      OUTPUT ${zip_out}
-      )
 
-    add_custom_target(
-      genzip_${deps}
-      ALL
-      DEPENDS
-      ${zip_out}
-      )
-  endfunction()
+  include(${ZEPHYR_BASE}/../nrf/cmake/fw_zip.cmake)
 
   function(sign to_sign_hex output_prefix offset sign_depends signed_hex_out)
     set(op ${output_prefix})
@@ -99,16 +77,16 @@ if(CONFIG_BOOTLOADER_MCUBOOT)
 
   if (CONFIG_BUILD_S1_VARIANT AND ("${CONFIG_S1_VARIANT_IMAGE_NAME}" STREQUAL "mcuboot"))
     # Inject this configuration from parent image to mcuboot.
-    set(conf_path "${ZEPHYR_NRF_MODULE_DIR}/subsys/bootloader/image/build_s1.conf")
-    string(FIND ${mcuboot_OVERLAY_CONFIG} ${conf_path} out)
-    if (${out} EQUAL -1)
-      set(mcuboot_OVERLAY_CONFIG
-        "${mcuboot_OVERLAY_CONFIG} ${conf_path}"
-        CACHE STRING "" FORCE)
-    endif()
+    add_overlay_config(
+      mcuboot
+      ${ZEPHYR_NRF_MODULE_DIR}/subsys/bootloader/image/build_s1.conf
+      )
   endif()
 
-  add_child_image(mcuboot ${MCUBOOT_DIR}/boot/zephyr)
+  add_child_image(
+    NAME mcuboot
+    SOURCE_DIR ${MCUBOOT_DIR}/boot/zephyr
+    )
 
   set(merged_hex_file
     ${PROJECT_BINARY_DIR}/mcuboot_primary_app.hex)
@@ -127,7 +105,7 @@ if(CONFIG_BOOTLOADER_MCUBOOT)
     sign
     --key ${MCUBOOT_DIR}/${CONFIG_BOOT_SIGNATURE_KEY_FILE}
     --header-size $<TARGET_PROPERTY:partition_manager,PM_MCUBOOT_PAD_SIZE>
-    --align       ${CONFIG_DT_FLASH_WRITE_BLOCK_SIZE}
+    --align       ${CONFIG_MCUBOOT_FLASH_WRITE_BLOCK_SIZE}
     --version     ${CONFIG_MCUBOOT_IMAGE_VERSION}
     --slot-size   $<TARGET_PROPERTY:partition_manager,PM_MCUBOOT_PRIMARY_SIZE>
     --pad-header
@@ -154,10 +132,11 @@ if(CONFIG_BOOTLOADER_MCUBOOT)
     )
 
   generate_dfu_zip(
-    ${PROJECT_BINARY_DIR}/dfu_application.zip
-    ${PROJECT_BINARY_DIR}/app_update.bin
-    mcuboot_sign_target
-    "type=application"
+    TARGET mcuboot_sign_target
+    OUTPUT ${PROJECT_BINARY_DIR}/dfu_application.zip
+    BIN_FILES ${PROJECT_BINARY_DIR}/app_update.bin
+    TYPE application
+    SCRIPT_PARAMS
     "load_address=$<TARGET_PROPERTY:partition_manager,PM_APP_ADDRESS>"
     "version_MCUBOOT=${CONFIG_MCUBOOT_IMAGE_VERSION}"
     )
@@ -214,17 +193,24 @@ if(CONFIG_BOOTLOADER_MCUBOOT)
     endforeach()
 
     # Generate zip file with both update candidates
-    set(s0_bin_path
-      ${PROJECT_BINARY_DIR}/signed_by_mcuboot_and_b0_s0_image_update.bin)
-    get_filename_component(s0_name ${s0_bin_path} NAME)
-    set(s1_bin_path
-      ${PROJECT_BINARY_DIR}/signed_by_mcuboot_and_b0_s1_image_update.bin)
-    get_filename_component(s1_name ${s1_bin_path} NAME)
+    set(s0_name signed_by_mcuboot_and_b0_s0_image_update.bin)
+    set(s0_bin_path ${PROJECT_BINARY_DIR}/${s0_name})
+    set(s1_name signed_by_mcuboot_and_b0_s1_image_update.bin)
+    set(s1_bin_path ${PROJECT_BINARY_DIR}/${s1_name})
+
+    # Create dependency to ensure explicit build order. This is needed to have
+    # a single target represent the state when both s0 and s1 imags are built.
+    add_dependencies(
+      signed_s1_target
+      signed_s0_target
+      )
+
     generate_dfu_zip(
-      ${PROJECT_BINARY_DIR}/dfu_mcuboot.zip
-      "${s0_bin_path};${s1_bin_path}"
-      "signed_s0_target;signed_s1_target"
-      "type=mcuboot"
+      TARGET signed_s1_target
+      OUTPUT ${PROJECT_BINARY_DIR}/dfu_mcuboot.zip
+      BIN_FILES ${s0_bin_path} ${s1_bin_path}
+      TYPE mcuboot
+      SCRIPT_PARAMS
       "${s0_name}load_address=$<TARGET_PROPERTY:partition_manager,PM_S0_ADDRESS>"
       "${s1_name}load_address=$<TARGET_PROPERTY:partition_manager,PM_S1_ADDRESS>"
       "version_MCUBOOT=${CONFIG_MCUBOOT_IMAGE_VERSION}"

@@ -1,0 +1,21 @@
+if USB
+
+menu "USB state"
+
+config NW_SNS_USB_ENABLE
+	bool "Enable USB module"
+	default n
+	help
+	  Enables USB module.
+
+if NW_SNS_USB_ENABLE
+
+module = NW_SNS_USB_STATE
+module-str = USB state
+source "subsys/logging/Kconfig.template.log_config"
+
+endif
+
+endmenu
+
+endif

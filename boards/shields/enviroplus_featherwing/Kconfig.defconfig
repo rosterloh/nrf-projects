@@ -1,0 +1,32 @@
+if SHIELD_ENVIROPLUS_FEATHERWING
+
+config I2C
+	default y
+
+if DISPLAY
+
+config SPI
+	default y
+
+config ST7789V
+	default y
+
+if LVGL
+
+config LVGL_DISPLAY_DEV_NAME
+	default "ST7735R"
+
+config LVGL_HOR_RES
+	default 160
+
+config LVGL_VER_RES
+	default 80
+
+config LVGL_BITS_PER_PIXEL
+	default 16
+
+endif # LVGL
+
+endif # DISPLAY
+
+endif # SHIELD_ENVIROPLUS_FEATHERWING

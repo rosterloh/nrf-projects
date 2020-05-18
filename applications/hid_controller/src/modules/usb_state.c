@@ -385,15 +385,15 @@ static void device_status(enum usb_dc_status_code cb_status, const u8_t *param)
 
 static void protocol_change(u8_t protocol)
 {
-	BUILD_ASSERT_MSG(IS_ENABLED(CONFIG_CONTROLLER_HID_BOOT_INTERFACE_DISABLED) ==
-			 !IS_ENABLED(CONFIG_USB_HID_BOOT_PROTOCOL),
-			 "Boot protocol setup inconsistency");
-	BUILD_ASSERT_MSG(IS_ENABLED(CONFIG_CONTROLLER_HID_BOOT_INTERFACE_KEYBOARD) ==
-			 (IS_ENABLED(CONFIG_USB_HID_BOOT_PROTOCOL) && (CONFIG_USB_HID_PROTOCOL_CODE == 1)),
-			 "Boot protocol code does not reflect selected interface");
-	BUILD_ASSERT_MSG(IS_ENABLED(CONFIG_CONTROLLER_HID_BOOT_INTERFACE_MOUSE) ==
-			 (IS_ENABLED(CONFIG_USB_HID_BOOT_PROTOCOL) && (CONFIG_USB_HID_PROTOCOL_CODE == 2)),
-			 "Boot protocol code does not reflect selected interface");
+	BUILD_ASSERT(IS_ENABLED(CONFIG_CONTROLLER_HID_BOOT_INTERFACE_DISABLED) ==
+		     !IS_ENABLED(CONFIG_USB_HID_BOOT_PROTOCOL),
+		     "Boot protocol setup inconsistency");
+	BUILD_ASSERT(IS_ENABLED(CONFIG_CONTROLLER_HID_BOOT_INTERFACE_KEYBOARD) ==
+		     (IS_ENABLED(CONFIG_USB_HID_BOOT_PROTOCOL) && (CONFIG_USB_HID_PROTOCOL_CODE == 1)),
+		     "Boot protocol code does not reflect selected interface");
+	BUILD_ASSERT(IS_ENABLED(CONFIG_CONTROLLER_HID_BOOT_INTERFACE_MOUSE) ==
+		     (IS_ENABLED(CONFIG_USB_HID_BOOT_PROTOCOL) && (CONFIG_USB_HID_PROTOCOL_CODE == 2)),
+		     "Boot protocol code does not reflect selected interface");
 
 	if ((protocol != HID_PROTOCOL_BOOT) &&
 	    (protocol != HID_PROTOCOL_REPORT)) {

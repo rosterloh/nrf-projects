@@ -18,6 +18,8 @@
 #include <hal/nrf_power.h>
 #endif
 
+#define DT_DRV_COMPAT nordic_nrf_clock
+
 /* MPSL clock control structure */
 struct mpsl_clock_control_data {
 	sys_slist_t async_on_list;
@@ -298,7 +300,7 @@ static int clock_async_start(struct device *dev, clock_control_subsys_t subsys,
 		 * Therefore, LFCLK is always handled in case STATUS_ON.
 		 */
 		if ((data != NULL) && (data->cb != NULL)) {
-			data->cb(dev, data->user_data);
+			data->cb(dev, subsys, data->user_data);
 		}
 
 		break;
@@ -337,8 +339,7 @@ static int clock_control_init(struct device *dev)
 	 * see subsys/mpsl/mpsl_init.c.
 	 */
 
-	IRQ_CONNECT(DT_INST_0_NORDIC_NRF_CLOCK_IRQ_0,
-		    DT_INST_0_NORDIC_NRF_CLOCK_IRQ_0_PRIORITY,
+	IRQ_CONNECT(DT_INST_IRQN(0), DT_INST_IRQ(0, priority),
 		    nrf_power_clock_isr, 0, 0);
 
 	sys_slist_init(&(mpsl_control_data->async_on_list));
@@ -357,7 +358,7 @@ static const struct clock_control_driver_api clock_control_api = {
 static struct mpsl_clock_control_data clock_control_data;
 
 DEVICE_AND_API_INIT(clock_nrf,
-		    DT_INST_0_NORDIC_NRF_CLOCK_LABEL,
+		    DT_INST_LABEL(0),
 		    clock_control_init, &clock_control_data, NULL, PRE_KERNEL_1,
 		    CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &clock_control_api);
 
@@ -374,7 +375,7 @@ void nrf5_power_usb_power_int_enable(bool enable)
 
 	if (enable) {
 		nrf_power_int_enable(NRF_POWER, mask);
-		irq_enable(DT_INST_0_NORDIC_NRF_CLOCK_IRQ_0);
+		irq_enable(DT_INST_IRQN(0));
 	} else {
 		nrf_power_int_disable(NRF_POWER, mask);
 	}
@@ -408,7 +409,8 @@ static void hf_clock_started_callback(void)
 		struct clock_control_async_data *clock_async_data = NULL;
 
 		SYS_SLIST_FOR_EACH_CONTAINER(list, clock_async_data, node) {
-			clock_async_data->cb(dev, clock_async_data->user_data);
+			clock_async_data->cb(dev, CLOCK_CONTROL_NRF_SUBSYS_HF,
+					     clock_async_data->user_data);
 		}
 	}
 

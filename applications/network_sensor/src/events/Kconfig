@@ -1,0 +1,37 @@
+if LOG
+
+menu "Event options"
+
+comment "Initially logged events"
+
+config NW_SNS_INIT_LOG_BUTTON_EVENT
+	bool "Button event"
+	default y
+
+config NW_SNS_INIT_LOG_CONFIG_EVENT
+	bool "Config event"
+	default y
+
+config NW_SNS_INIT_LOG_LED_EVENT
+	bool "LED event"
+	default y
+
+config NW_SNS_INIT_LOG_MODULE_STATE_EVENT
+	bool "Module state event"
+	default y
+
+config NW_SNS_INIT_LOG_POWER_DOWN_EVENT
+	bool "Power down event"
+	default y
+
+config NW_SNS_INIT_LOG_WAKE_UP_EVENT
+	bool "Wake up event"
+	default y
+
+config NW_SNS_INIT_LOG_USB_STATE_EVENT
+	bool "USB state event"
+	default y
+
+endmenu
+
+endif

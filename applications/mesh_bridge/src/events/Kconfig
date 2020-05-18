@@ -1,0 +1,25 @@
+if LOG
+
+menu "Event options"
+
+comment "Initially logged events"
+
+config BRIDGE_LOG_MODULE_STATE_EVENT
+	bool "Module state event"
+	default y
+
+config BRIDGE_LOG_UART_DATA_EVENT
+	bool "UART data event"
+	default y
+
+config BRIDGE_LOG_CDC_DATA_EVENT
+	bool "CDC data event"
+	default y
+
+config BRIDGE_LOG_POWER_DOWN_EVENT
+	bool "Power down event"
+	default y
+
+endmenu
+
+endif

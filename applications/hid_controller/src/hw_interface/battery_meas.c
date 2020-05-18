@@ -85,11 +85,11 @@ static int init_adc(void)
 	}
 
 	/* Check if number of elements in LUT is proper */
-	BUILD_ASSERT_MSG(CONFIG_CONTROLLER_BATTERY_MEAS_MAX_LEVEL
-			 - CONFIG_CONTROLLER_BATTERY_MEAS_MIN_LEVEL
-			 == (ARRAY_SIZE(battery_voltage_to_soc) - 1)
-			 * CONFIG_CONTROLLER_VOLTAGE_TO_SOC_DELTA,
-			 "Improper number of elements in lookup table");
+	BUILD_ASSERT(CONFIG_CONTROLLER_BATTERY_MEAS_MAX_LEVEL
+		     - CONFIG_CONTROLLER_BATTERY_MEAS_MIN_LEVEL
+		     == (ARRAY_SIZE(battery_voltage_to_soc) - 1)
+		     * CONFIG_CONTROLLER_VOLTAGE_TO_SOC_DELTA,
+		     "Improper number of elements in lookup table");
 
 	return 0;
 }

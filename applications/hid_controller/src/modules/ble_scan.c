@@ -227,12 +227,12 @@ static int configure_name_filters(u8_t *filter_mode)
 
 static int configure_filters(void)
 {
-	BUILD_ASSERT_MSG(CONFIG_BT_MAX_PAIRED == CONFIG_BT_MAX_CONN, "");
-	BUILD_ASSERT_MSG(CONFIG_BT_MAX_PAIRED <= CONFIG_BT_SCAN_ADDRESS_CNT,
-			 "Insufficient number of address filters");
-	BUILD_ASSERT_MSG(ARRAY_SIZE(peer_name) <= CONFIG_BT_SCAN_NAME_CNT,
-			 "Insufficient number of name filers");
-	BUILD_ASSERT_MSG(ARRAY_SIZE(peer_name) == PEER_TYPE_COUNT, "");
+	BUILD_ASSERT(CONFIG_BT_MAX_PAIRED == CONFIG_BT_MAX_CONN, "");
+	BUILD_ASSERT(CONFIG_BT_MAX_PAIRED <= CONFIG_BT_SCAN_ADDRESS_CNT,
+		     "Insufficient number of address filters");
+	BUILD_ASSERT(ARRAY_SIZE(peer_name) <= CONFIG_BT_SCAN_NAME_CNT,
+		     "Insufficient number of name filers");
+	BUILD_ASSERT(ARRAY_SIZE(peer_name) == PEER_TYPE_COUNT, "");
 	bt_scan_filter_remove_all();
 
 	u8_t filter_mode = 0;
@@ -361,8 +361,8 @@ error:
 
 static void scan_start_trigger_fn(struct k_work *w)
 {
-	BUILD_ASSERT_MSG((SCAN_TRIG_TIMEOUT_MS > SCAN_TRIG_CHECK_MS) &&
-		      (SCAN_TRIG_CHECK_MS > 0), "");
+	BUILD_ASSERT((SCAN_TRIG_TIMEOUT_MS > SCAN_TRIG_CHECK_MS) &&
+		     (SCAN_TRIG_CHECK_MS > 0), "");
 
 	scan_counter += SCAN_TRIG_CHECK_MS;
 	if (scan_counter > SCAN_TRIG_TIMEOUT_MS) {
@@ -375,7 +375,7 @@ static void scan_start_trigger_fn(struct k_work *w)
 
 static void scan_stop_trigger_fn(struct k_work *w)
 {
-	BUILD_ASSERT_MSG(SCAN_DURATION_MS > 0, "");
+	BUILD_ASSERT(SCAN_DURATION_MS > 0, "");
 
 	if (count_conn() != 0) {
 		peers_only = true;

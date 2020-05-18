@@ -1,0 +1,39 @@
+if SHIELD_OLED_FEATHERWING
+
+if DISPLAY
+
+config I2C
+	default y
+
+config SSD1306
+	default y
+
+if LVGL
+
+config LVGL_DISPLAY_DEV_NAME
+	default "SSD1306"
+
+config LVGL_HOR_RES
+	default 128
+
+config LVGL_VER_RES
+	default 32
+
+config LVGL_VDB_SIZE
+	default 64
+
+config LVGL_DPI
+	default 148
+
+config LVGL_BITS_PER_PIXEL
+	default 1
+
+choice LVGL_COLOR_DEPTH
+	default LVGL_COLOR_DEPTH_1
+endchoice
+
+endif # LVGL
+
+endif # DISPLAY
+
+endif # SHIELD_OLED_FEATHERWING

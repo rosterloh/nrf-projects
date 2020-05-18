@@ -15,6 +15,7 @@
 
 #include <ble_controller.h>
 #include <ble_controller_hci.h>
+#include <ble_controller_hci_vs.h>
 #include "multithreading_lock.h"
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
@@ -192,22 +193,43 @@ static void data_packet_process(u8_t *hci_buf)
 	bt_recv(data_buf);
 }
 
-static void event_packet_process(u8_t *hci_buf)
+static bool event_packet_is_discardable(const u8_t *hci_buf)
 {
 	struct bt_hci_evt_hdr *hdr = (void *)hci_buf;
+
+	switch (hdr->evt) {
+	case BT_HCI_EVT_LE_META_EVENT: {
+		struct bt_hci_evt_le_meta_event *me = (void *)&hci_buf[2];
+
+		switch (me->subevent) {
+		case BT_HCI_EVT_LE_ADVERTISING_REPORT:
+		case BT_HCI_EVT_LE_EXT_ADVERTISING_REPORT:
+			return true;
+		default:
+			return false;
+		}
+	}
+	case BT_HCI_EVT_VENDOR:
+	{
+		u8_t subevent = hci_buf[2];
+
+		switch (subevent) {
+		case HCI_VS_SUBEVENT_CODE_QOS_CONN_EVENT_REPORT:
+			return true;
+		default:
+			return false;
+		}
+	}
+	default:
+		return false;
+	}
+}
+
+static void event_packet_process(u8_t *hci_buf)
+{
+	bool discardable = event_packet_is_discardable(hci_buf);
+	struct bt_hci_evt_hdr *hdr = (void *)hci_buf;
 	struct net_buf *evt_buf;
-
-	if (hdr->evt == BT_HCI_EVT_CMD_COMPLETE ||
-	    hdr->evt == BT_HCI_EVT_CMD_STATUS) {
-		evt_buf = bt_buf_get_cmd_complete(K_FOREVER);
-	} else {
-		evt_buf = bt_buf_get_rx(BT_BUF_EVT, K_FOREVER);
-	}
-
-	if (!evt_buf) {
-		BT_ERR("No event buffer available");
-		return;
-	}
 
 	if (hdr->evt == BT_HCI_EVT_LE_META_EVENT) {
 		struct bt_hci_evt_le_meta_event *me = (void *)&hci_buf[2];
@@ -230,6 +252,19 @@ static void event_packet_process(u8_t *hci_buf)
 		       opcode, cs->status);
 	} else {
 		BT_DBG("Event (0x%02x) len %u", hdr->evt, hdr->len);
+	}
+
+	evt_buf = bt_buf_get_evt(hdr->evt, discardable,
+				 discardable ? K_NO_WAIT : K_FOREVER);
+
+	if (!evt_buf) {
+		if (discardable) {
+			BT_DBG("Discarding event");
+			return;
+		}
+
+		BT_ERR("No event buffer available");
+		return;
 	}
 
 	net_buf_add_mem(evt_buf, &hci_buf[0], hdr->len + sizeof(*hdr));
@@ -409,19 +444,23 @@ static const struct bt_hci_driver drv = {
 	.send = hci_driver_send,
 };
 
-uint8_t bt_read_static_addr(struct bt_hci_vs_static_addr *addr)
+#if !defined(CONFIG_BT_HCI_VS_EXT)
+uint8_t bt_read_static_addr(struct bt_hci_vs_static_addr addrs[], uint8_t size)
 {
+	/* only one supported */
+	ARG_UNUSED(size);
+
 	if (((NRF_FICR->DEVICEADDR[0] != UINT32_MAX) ||
 	    ((NRF_FICR->DEVICEADDR[1] & UINT16_MAX) != UINT16_MAX)) &&
 	     (NRF_FICR->DEVICEADDRTYPE & 0x01)) {
-		sys_put_le32(NRF_FICR->DEVICEADDR[0], &addr->bdaddr.val[0]);
-		sys_put_le16(NRF_FICR->DEVICEADDR[1], &addr->bdaddr.val[4]);
+		sys_put_le32(NRF_FICR->DEVICEADDR[0], &addrs[0].bdaddr.val[0]);
+		sys_put_le16(NRF_FICR->DEVICEADDR[1], &addrs[0].bdaddr.val[4]);
 
 		/* The FICR value is a just a random number, with no knowledge
 		 * of the Bluetooth Specification requirements for random
 		 * static addresses.
 		 */
-		BT_ADDR_SET_STATIC(&addr->bdaddr);
+		BT_ADDR_SET_STATIC(&addrs[0].bdaddr);
 
 		/* If no public address is provided and a static address is
 		 * available, then it is recommended to return an identity root
@@ -431,13 +470,13 @@ uint8_t bt_read_static_addr(struct bt_hci_vs_static_addr *addr)
 		    (NRF_FICR->IR[1] != UINT32_MAX) &&
 		    (NRF_FICR->IR[2] != UINT32_MAX) &&
 		    (NRF_FICR->IR[3] != UINT32_MAX)) {
-			sys_put_le32(NRF_FICR->IR[0], &addr->ir[0]);
-			sys_put_le32(NRF_FICR->IR[1], &addr->ir[4]);
-			sys_put_le32(NRF_FICR->IR[2], &addr->ir[8]);
-			sys_put_le32(NRF_FICR->IR[3], &addr->ir[12]);
+			sys_put_le32(NRF_FICR->IR[0], &addrs[0].ir[0]);
+			sys_put_le32(NRF_FICR->IR[1], &addrs[0].ir[4]);
+			sys_put_le32(NRF_FICR->IR[2], &addrs[0].ir[8]);
+			sys_put_le32(NRF_FICR->IR[3], &addrs[0].ir[12]);
 		} else {
 			/* Mark IR as invalid */
-			(void)memset(addr->ir, 0x00, sizeof(addr->ir));
+			(void)memset(addrs[0].ir, 0x00, sizeof(addrs[0].ir));
 		}
 
 		return 1;
@@ -445,6 +484,7 @@ uint8_t bt_read_static_addr(struct bt_hci_vs_static_addr *addr)
 
 	return 0;
 }
+#endif /* !defined(CONFIG_BT_HCI_VS_EXT) */
 
 static int hci_driver_init(struct device *unused)
 {
