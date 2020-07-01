@@ -45,8 +45,9 @@ enum uart_device_idx {
 
 BUILD_ASSERT(UART_DEVICE_COUNT > 0);
 
+/* List of UART device names. "UART_0", "UART_1", etc. */
 static const char *device_names[UART_DEVICE_COUNT] = {
-#define X(_DEV_IDX) CONCAT(CONCAT(DT_UART_, _DEV_IDX), _NAME),
+#define X(_DEV_IDX) STRINGIFY(CONCAT(UART_, _DEV_IDX)),
 	UART_DEVICE_LIST
 #undef X
 };
@@ -80,11 +81,6 @@ static atomic_t uart_tx_started[UART_DEVICE_COUNT];
 static bool framing_error_msg_sent[UART_DEVICE_COUNT];
 static char framing_error_msg[] =
 	"[UART FRAMING ERROR! CHECK BAUDRATE!]";
-
-#if CONFIG_BT_LL_NRFXLIB
-/* Required by nrfx_ppi, which is used by nrfx_uart */
-const u32_t z_bt_ctlr_used_nrf_ppi_channels;
-#endif
 
 static void enable_uart_rx(u8_t dev_idx);
 static void disable_uart_rx(u8_t dev_idx);

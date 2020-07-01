@@ -55,7 +55,7 @@ enum {
         SEESAW_TIMER_PWM = 0x01,
         SEESAW_TIMER_FREQ = 0x02,
 };
-	
+
 /** ADC module function addres registers */
 enum {
         SEESAW_ADC_STATUS = 0x00,
@@ -183,13 +183,14 @@ struct seesaw_data {
 
 	seesaw_int_callback_t int_cb;
 
+	struct device *dev;
+
 #if defined(CONFIG_SEESAW_TRIGGER_OWN_THREAD)
 	K_THREAD_STACK_MEMBER(thread_stack, CONFIG_SEESAW_THREAD_STACK_SIZE);
 	struct k_sem gpio_sem;
 	struct k_thread thread;
 #elif defined(CONFIG_SEESAW_TRIGGER_GLOBAL_THREAD)
 	struct k_work work;
-	struct device *dev;
 #endif
 
 #endif /* CONFIG_SEESAW_TRIGGER */
@@ -206,8 +207,7 @@ int seesaw_set_int_callback(struct device *dev,
 int seesaw_init_interrupt(struct device *dev);
 #endif /* CONFIG_SEESAW_TRIGGER */
 
-#define DEV_CFG(dev)	\
-((const struct seesaw_config * const)(dev)->config->config_info)
+#define DEV_CFG(dev) ((const struct seesaw_config * const)(dev)->config_info)
 #define DEV_DATA(dev) ((struct seesaw_data * const)(dev)->driver_data)
 
 #endif /* ZEPHYR_DRIVERS_SEESAW_SEESAW_H_ */

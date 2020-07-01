@@ -1,8 +1,7 @@
+#define DT_DRV_COMPAT adafruit_seesaw
+
 #include <string.h>
-#include <device.h>
-#include <drivers/i2c.h>
 #include <sys/byteorder.h>
-#include <sys/util.h>
 #include <kernel.h>
 #include <sys/__assert.h>
 
@@ -147,7 +146,7 @@ static int seesaw_init_device(struct device *dev)
         if (hw_id != SEESAW_HW_ID_CODE) {
                 LOG_ERR("Unknown device deteced: 0x%" PRIx8, hw_id);
                 return -EFAULT;
-        }        
+        }
 
 	if (seesaw_read(dev, SEESAW_STATUS_BASE, SEESAW_STATUS_VERSION,
                         buf, 4, 170) < 0) {
@@ -169,7 +168,7 @@ static int seesaw_init_device(struct device *dev)
 
         u32_t options = sys_get_be32(buf);
         LOG_DBG("Modules found:");
-                
+
         if ((options & (1UL << SEESAW_TIMER_BASE)) > 0)
                 LOG_DBG("\tTIMER");
         if ((options & (1UL << SEESAW_ADC_BASE)) > 0)
@@ -229,17 +228,18 @@ static const struct seesaw_driver_api seesaw_driver_api = {
 };
 
 static const struct seesaw_config seesaw_config = {
-	.i2c_name = DT_INST_0_ADAFRUIT_SEESAW_BUS_NAME,
-	.i2c_address = DT_INST_0_ADAFRUIT_SEESAW_BASE_ADDRESS,
+	.i2c_name = DT_INST_BUS_LABEL(0),,
+	.i2c_address = DT_INST_REG_ADDR(0),
 #ifdef CONFIG_SEESAW_TRIGGER
-	.gpio_name = DT_INST_0_ADAFRUIT_SEESAW_INT_GPIOS_CONTROLLER,
-	.gpio_pin = DT_INST_0_ADAFRUIT_SEESAW_INT_GPIOS_PIN,
+	.int_name = DT_INST_GPIO_LABEL(0, int_gpios),
+	.int_pin = DT_INST_GPIO_PIN(0, int_gpios),
+	.int_flags = DT_INST_GPIO_FLAGS(0, int_gpios),
 #endif
 };
 
 static struct seesaw_data seesaw_driver;
 
-DEVICE_AND_API_INIT(seesaw, DT_INST_0_ADAFRUIT_SEESAW_LABEL, seesaw_init,
-		    &seesaw_driver, &seesaw_config, 
+DEVICE_AND_API_INIT(seesaw, DT_INST_LABEL(0), seesaw_init,
+		    &seesaw_driver, &seesaw_config,
                     POST_KERNEL, CONFIG_SENSOR_INIT_PRIORITY,
 		    &seesaw_driver_api);

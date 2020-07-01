@@ -214,7 +214,7 @@ static bool event_packet_is_discardable(const u8_t *hci_buf)
 		u8_t subevent = hci_buf[2];
 
 		switch (subevent) {
-		case HCI_VS_SUBEVENT_CODE_QOS_CONN_EVENT_REPORT:
+		case HCI_VS_SUBEVENT_QOS_CONN_EVENT_REPORT:
 			return true;
 		default:
 			return false;
@@ -419,6 +419,20 @@ static int hci_driver_open(void)
 
 	if (IS_ENABLED(CONFIG_BT_DATA_LEN_UPDATE)) {
 		err = ble_controller_support_dle();
+		if (err) {
+			return -ENOTSUP;
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_BT_CTLR_PHY_2M)) {
+		err = ble_controller_support_le_2m_phy();
+		if (err) {
+			return -ENOTSUP;
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_BT_CTLR_PHY_CODED)) {
+		err = ble_controller_support_le_coded_phy();
 		if (err) {
 			return -ENOTSUP;
 		}

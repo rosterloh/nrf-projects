@@ -1,40 +1,69 @@
-#include <device.h>
-#include <sys/util.h>
 #include <kernel.h>
-#include "seesaw.h"
 
-extern struct seesaw_data seesaw_driver;
+#include "seesaw.h"
 
 #include <logging/log.h>
 LOG_MODULE_DECLARE(seesaw, CONFIG_SENSOR_LOG_LEVEL);
 
-static void seesaw_gpio_callback(struct device *dev,
-				  struct gpio_callback *cb, u32_t pins)
+static void setup_int(struct device *dev,
+		      bool enable)
 {
-	struct seesaw_data *drv_data =
-		CONTAINER_OF(cb, struct seesaw_data, gpio_cb);
+	struct seesaw_data *data = DEV_DATA(dev);
 	const struct seesaw_config *config = DEV_CFG(dev);
+	gpio_flags_t flags = enable
+		? GPIO_INT_EDGE_TO_ACTIVE
+		: GPIO_INT_DISABLE;
 
-	gpio_pin_disable_callback(dev, config->gpio_pin);
+	gpio_pin_interrupt_configure(data->gpio, cfg->int_pin, flags);
+}
+
+static void handle_int(struct device *dev)
+{
+	struct seesaw_data *data = DEV_DATA(dev);
+
+	setup_int(dev, false);
 
 #if defined(CONFIG_SEESAW_TRIGGER_OWN_THREAD)
-	k_sem_give(&drv_data->gpio_sem);
+	k_sem_give(&data->gpio_sem);
 #elif defined(CONFIG_SEESAW_TRIGGER_GLOBAL_THREAD)
-	k_work_submit(&drv_data->work);
+	k_work_submit(&data->work);
 #endif
 }
 
-static void seesaw_thread_cb(void *arg)
+
+static void process_int(struct device *dev)
 {
-	struct device *dev = arg;
 	struct seesaw_data *data = DEV_DATA(dev);
 	const struct seesaw_config *config = DEV_CFG(dev);
+	//u8_t status;
 
-	if (data->int_cb) {
+	/* Clear the status */
+	//if (i2c_reg_read_byte(data->i2c, cfg->i2c_addr,
+	//		      ADT7420_REG_STATUS, &status) < 0) {
+	//	return;
+	//}
+
+	if (data->int_cb != NULL) {
 		data->int_cb(dev);
 	}
 
-	gpio_pin_enable_callback(data->gpio, config->gpio_pin);
+	setup_int(dev, true);
+
+	/* Check for pin that asserted while we were offline */
+	int pv = gpio_pin_get(data->gpio, cfg->int_pin);
+
+	if (pv > 0) {
+		handle_int(dev);
+	}
+}
+
+static void seesaw_gpio_callback(struct device *dev,
+				 struct gpio_callback *cb, u32_t pins)
+{
+	struct seesaw_data *data =
+		CONTAINER_OF(cb, struct seesaw_data, gpio_cb);
+
+	handle_int(data->dev);
 }
 
 #ifdef CONFIG_SEESAW_TRIGGER_OWN_THREAD
@@ -47,7 +76,7 @@ static void seesaw_thread(int dev_ptr, int unused)
 
 	while (42) {
 		k_sem_take(&data->gpio_sem, K_FOREVER);
-		seesaw_thread_cb(dev);
+		process_int(dev);
 	}
 }
 #endif
@@ -57,7 +86,8 @@ static void seesaw_work_cb(struct k_work *work)
 {
 	struct seesaw_data *drv_data =
 		CONTAINER_OF(work, struct seesaw_data, work);
-	seesaw_thread_cb(drv_data->dev);
+
+	process_int(drv_data->dev);
 }
 #endif
 
@@ -67,9 +97,18 @@ int seesaw_set_int_callback(struct device *dev,
 	struct seesaw_data *data = DEV_DATA(dev);
         const struct seesaw_config *config = DEV_CFG(dev);
 
+	setup_int(dev, false);
+
 	data->int_cb = int_cb;
 
-        gpio_pin_enable_callback(data->gpio, config->gpio_pin);
+        setup_int(dev, true);
+
+	/* Check whether already asserted */
+	int pv = gpio_pin_get(data->gpio, cfg->int_pin);
+
+	if (pv > 0) {
+		handle_int(dev);
+	}
 
         return 0;
 }
@@ -80,25 +119,26 @@ int seesaw_init_interrupt(struct device *dev)
 	const struct seesaw_config *config = DEV_CFG(dev);
 
 	/* setup gpio interrupt */
-	data->gpio = device_get_binding(config->gpio_name);
+	data->gpio = device_get_binding(config->int_name);
 	if (data->gpio == NULL) {
 		LOG_DBG("Failed to get pointer to %s device!",
-			config->gpio_name);
+			config->int_name);
 		return -EINVAL;
 	}
 
-	gpio_pin_configure(data->gpio, config->gpio_pin,
-			   GPIO_DIR_IN | GPIO_INT | GPIO_INT_EDGE |
-			   GPIO_INT_ACTIVE_LOW | GPIO_INT_DEBOUNCE);
-
 	gpio_init_callback(&data->gpio_cb,
 			   seesaw_gpio_callback,
-			   BIT(config->gpio_pin));
+			   BIT(config->int_pin));
+
+	gpio_pin_configure(data->gpio, config->int_pin,
+			   GPIO_INPUT | cfg->int_flags);
 
 	if (gpio_add_callback(data->gpio, &data->gpio_cb) < 0) {
 		LOG_DBG("Failed to set gpio callback!");
 		return -EIO;
 	}
+
+	data->dev = dev;
 
 #if defined(CONFIG_SEESAW_TRIGGER_OWN_THREAD)
 	k_sem_init(&data->gpio_sem, 0, UINT_MAX);
@@ -110,7 +150,6 @@ int seesaw_init_interrupt(struct device *dev)
 			0, K_NO_WAIT);
 #elif defined(CONFIG_SEESAW_TRIGGER_GLOBAL_THREAD)
 	data->work.handler = seesaw_work_cb;
-	data->dev = dev;
 #endif
 
 	return 0;

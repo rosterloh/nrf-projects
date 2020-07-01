@@ -2,8 +2,8 @@ sample:
   description: Connectivity Bridge application
   name: Connectivity Bridge
 tests:
-  test_build:
+  applications.connectivity_bridge:
     build_only: true
     build_on_all: true
-    platform_whitelist: nrf52840_pca20035
+    platform_whitelist: thingy91_nrf52840
     tags: ci_build

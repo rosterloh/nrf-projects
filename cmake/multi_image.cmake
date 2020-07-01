@@ -105,6 +105,7 @@ function(add_child_image_from_source)
     ZEPHYR_TOOLCHAIN_VARIANT
     GNUARMEMB_TOOLCHAIN_PATH
     EXTRA_KCONFIG_TARGETS
+    NCS_TOOLCHAIN_VERSION
     PM_DOMAINS
     ${ACI_DOMAIN}_PM_DOMAIN_DYNAMIC_PARTITION
     )
@@ -208,6 +209,7 @@ function(add_child_image_from_source)
     BUILD_COMMAND ${CMAKE_COMMAND} --build . -- ${multi_image_build_args}
     INSTALL_COMMAND ""
     BUILD_ALWAYS True
+    USES_TERMINAL_BUILD True
     )
 
   foreach(kconfig_target

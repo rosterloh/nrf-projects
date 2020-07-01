@@ -6,7 +6,7 @@ manifest:
     - name: zephyrproject
       url-base: https://github.com/zephyrproject-rtos
     - name: ncs
-      url-base: https://github.com/NordicPlayground
+      url-base: https://github.com/nrfconnect
     - name: rosterloh
       url-base: git@github.com:rosterloh/nrf-projects.git
 
@@ -37,7 +37,8 @@ manifest:
           - hal_xtensa
 
     - name: nrfxlib
-      revision: 588bf3474c4b60de5aa51604bf88bd86262b5e4c
+      repo-path: sdk-nrfxlib
+      revision: 3eed8cbd8f6b0fa38aaa6b7d5d0e33bd7408f0d1
       path: nrfxlib
       remote: ncs
 

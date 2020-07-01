@@ -56,6 +56,7 @@ if("${IMAGE_NAME}" STREQUAL "${${domain}_PM_DOMAIN_DYNAMIC_PARTITION}_")
 endif()
 
 get_property(PM_IMAGES GLOBAL PROPERTY PM_IMAGES)
+get_property(PM_SUBSYS_PREPROCESSED GLOBAL PROPERTY PM_SUBSYS_PREPROCESSED)
 
 # This file is executed once per domain.
 #
@@ -65,12 +66,14 @@ get_property(PM_IMAGES GLOBAL PROPERTY PM_IMAGES)
 # - It's the root image, and a static configuration has been provided
 # - It's the root image, and PM_IMAGES is populated.
 # - It's the root image, and other domains exist.
+# - A subsys has defined a partition and CONFIG_PM_SINGLE_IMAGE is set.
 # Otherwise, return here
 if (NOT (
   (IMAGE_NAME AND is_dynamic_partition_in_domain) OR
   (NOT IMAGE_NAME AND static_configuration) OR
   (NOT IMAGE_NAME AND PM_IMAGES) OR
-  (NOT IMAGE_NAME AND PM_DOMAINS)
+  (NOT IMAGE_NAME AND PM_DOMAINS) OR
+  (PM_SUBSYS_PREPROCESSED AND CONFIG_PM_SINGLE_IMAGE)
   ))
   return()
 endif()
@@ -121,7 +124,6 @@ list(APPEND input_files ${ZEPHYR_BINARY_DIR}/${generated_path}/pm.yml)
 list(APPEND header_files ${ZEPHYR_BINARY_DIR}/${generated_path}/pm_config.h)
 
 # Add subsys defined pm.yml to the input_files
-get_property(PM_SUBSYS_PREPROCESSED GLOBAL PROPERTY PM_SUBSYS_PREPROCESSED)
 list(APPEND input_files ${PM_SUBSYS_PREPROCESSED})
 
 if (DEFINED CONFIG_SOC_NRF9160)
@@ -256,12 +258,19 @@ foreach(part ${PM_ALL_BY_SIZE})
 endforeach()
 
 string(TOUPPER ${domain} DOMAIN)
-set(PM_MERGED_${DOMAIN}_SPAN ${implicitly_assigned} ${explicitly_assigned})
-set(merged_${domain}_overlap TRUE) # Enable overlapping for the merged hex file.
+if (${is_dynamic_partition_in_domain})
+  set(merged_suffix _${domain})
+  string(TOUPPER ${merged_suffix} MERGED_SUFFIX)
+endif()
+set(merged merged${merged_suffix})
+set(MERGED MERGED${MERGED_SUFFIX})
+
+set(PM_${MERGED}_SPAN ${implicitly_assigned} ${explicitly_assigned})
+set(${merged}_overlap TRUE) # Enable overlapping for the merged hex file.
 
 # Iterate over all container partitions, plus the "fake" merged paritition.
 # The loop will create a hex file for each iteration.
-foreach(container ${containers} merged_${domain})
+foreach(container ${containers} ${merged})
   string(TOUPPER ${container} CONTAINER)
 
   # Prepare the list of hex files and list of dependencies for the merge command.
@@ -308,7 +317,7 @@ endforeach()
 get_target_property(runners_content runner_yml_props_target yaml_contents)
 
 string(REGEX REPLACE "--hex-file=[^\n]*"
-  "--hex-file=${PROJECT_BINARY_DIR}/merged_${domain}.hex" new  ${runners_content})
+  "--hex-file=${PROJECT_BINARY_DIR}/${merged}.hex" new  ${runners_content})
 
 set_property(
   TARGET         runner_yml_props_target
@@ -347,10 +356,15 @@ if (is_dynamic_partition_in_domain)
   share("set(${domain}_PM_DOMAIN_REGIONS ${pm_out_region_files})")
   share("set(${domain}_PM_DOMAIN_HEADER_FILES ${header_files})")
   share("set(${domain}_PM_DOMAIN_IMAGES ${prefixed_images})")
+  share("set(${domain}_PM_HEX_FILE ${PROJECT_BINARY_DIR}/${merged}.hex)")
 else()
   # This is the root image, generate the global pm_config.h
   # First, include the shared_vars.cmake file for all child images.
-  list(REMOVE_DUPLICATES PM_DOMAINS)
+  if (PM_DOMAINS)
+    # We ensure the existence of PM_DOMAINS to support older cmake versions.
+    # When version >= 3.17 is required this check can be removed.
+    list(REMOVE_DUPLICATES PM_DOMAINS)
+  endif()
   foreach (d ${PM_DOMAINS})
     # Don't include shared vars from own domain.
     if (NOT ${domain} STREQUAL ${d})
@@ -366,12 +380,13 @@ else()
       list(APPEND pm_out_partition_files ${${d}_PM_DOMAIN_PARTITIONS})
       list(APPEND pm_out_region_files ${${d}_PM_DOMAIN_REGIONS})
       list(APPEND global_hex_depends ${${d}_PM_DOMAIN_DYNAMIC_PARTITION}_subimage)
+      list(APPEND domain_hex_files ${${d}_PM_HEX_FILE})
     endif()
   endforeach()
 
   # Explicitly add the root image domain hex file to the list
-  list(APPEND domain_hex_files ${PROJECT_BINARY_DIR}/merged_${domain}.hex)
-  list(APPEND global_hex_depends merged_${domain}_hex)
+  list(APPEND domain_hex_files ${PROJECT_BINARY_DIR}/${merged}.hex)
+  list(APPEND global_hex_depends ${merged}_hex)
 
   # Now all partition manager configuration from all images and domains are
   # available. Generate the global pm_config.h, and provide it to all images.
@@ -406,8 +421,9 @@ else()
     PROPERTY PM_DEPENDS
     ${global_hex_depends}
     )
+
   # For convenience, generate global hex file containing all domains' hex files.
-  set(final_merged ${PROJECT_BINARY_DIR}/merged.hex)
+  set(final_merged ${PROJECT_BINARY_DIR}/merged_domains.hex)
 
   # Add command to merge files.
   add_custom_command(
@@ -422,10 +438,11 @@ else()
     )
 
   # Wrapper target for the merge command.
-  add_custom_target(merged_hex ALL DEPENDS ${final_merged})
-  # Add merged.hex as the representative hex file for flashing this app.
+  add_custom_target(merged_domains_hex ALL DEPENDS ${final_merged})
+
+  # Add ${merged}.hex as the representative hex file for flashing this app.
   if(TARGET flash)
-    add_dependencies(flash merged_hex)
+    add_dependencies(flash ${merged}_hex)
   endif()
   set(ZEPHYR_RUNNER_CONFIG_KERNEL_HEX "${final_merged}"
     CACHE STRING "Path to merged image in Intel Hex format" FORCE)

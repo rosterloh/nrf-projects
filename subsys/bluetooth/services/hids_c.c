@@ -936,29 +936,62 @@ int bt_gatt_hids_c_rep_write(struct bt_gatt_hids_c *hids_c,
 	err = bt_gatt_write(hids_c->conn, &(rep->write_params));
 	if (err) {
 		rep->write_cb = NULL;
-		return err;
 	}
-	return 0;
+
+	return err;
+}
+
+/**
+ *  @brief Process report write without response
+ *
+ *  @param conn Connection object.
+ *  @param rep_ptr Report object.
+ */
+static void rep_write_wo_rsp_process(struct bt_conn *conn, void *rep_ptr)
+{
+	struct bt_gatt_hids_c_rep_info *rep = rep_ptr;
+
+	if (!rep->write_cb) {
+		LOG_ERR("No write callback present");
+		return;
+	}
+
+	rep->write_cb(rep->hids_c, rep, 0);
+	rep->write_cb = NULL;
 }
 
 int bt_gatt_hids_c_rep_write_wo_rsp(struct bt_gatt_hids_c *hids_c,
 				   struct bt_gatt_hids_c_rep_info *rep,
-				   const void *data, u8_t length)
+				   const void *data, u8_t length,
+				   bt_gatt_hids_c_write_cb func)
 {
 	int err;
 
-	if (!hids_c || !rep) {
+	if (!hids_c || !rep || !func) {
 		return -EINVAL;
 	}
+
 	if (rep->ref.type != BT_GATT_HIDS_REPORT_TYPE_OUTPUT) {
 		return -ENOTSUP;
 	}
 
-	err = bt_gatt_write_without_response(hids_c->conn,
-					     rep->handlers.val,
-					     data,
-					     length,
-					     false);
+	if (rep->write_cb) {
+		return -EBUSY;
+	}
+
+	rep->write_cb = func;
+
+	err = bt_gatt_write_without_response_cb(hids_c->conn,
+						rep->handlers.val,
+						data,
+						length,
+						false,
+						rep_write_wo_rsp_process,
+						rep);
+	if (err) {
+		rep->write_cb = NULL;
+	}
+
 	return err;
 }
 
@@ -1089,7 +1122,7 @@ static u8_t map_read_process(struct bt_conn *conn, u8_t err,
 int bt_gatt_hids_c_map_read(struct bt_gatt_hids_c *hids_c,
 			    bt_gatt_hids_c_map_cb func,
 			    size_t offset,
-			    s32_t timeout)
+			    k_timeout_t timeout)
 {
 	int err;
 
@@ -1156,7 +1189,7 @@ static u8_t pm_update_process(struct bt_conn *conn, u8_t err,
 	return BT_GATT_ITER_STOP;
 }
 
-int bt_gatt_hids_c_pm_update(struct bt_gatt_hids_c *hids_c, s32_t timeout)
+int bt_gatt_hids_c_pm_update(struct bt_gatt_hids_c *hids_c, k_timeout_t timeout)
 {
 	int err;
 

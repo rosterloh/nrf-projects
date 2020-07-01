@@ -2,7 +2,7 @@
 
 menuconfig SEESAW
 	bool "SeeSaw driver"
-        depends on I2C
+        depends on I2C && HAS_DTS_I2C && HAS_DTS_GPIO
 	help
 	  Enable SeeSaw driver.
 
@@ -34,14 +34,14 @@ config SEESAW_TRIGGER
 
 config SEESAW_THREAD_PRIORITY
 	int "Thread priority"
-	depends on SEESAW_TRIGGER_OWN_THREAD
+	depends on SEESAW_TRIGGER_OWN_THREAD && SEESAW_TRIGGER
 	default 10
 	help
 	  Priority of thread used by the driver to handle interrupts.
 
 config SEESAW_THREAD_STACK_SIZE
 	int "Thread stack size"
-	depends on SEESAW_TRIGGER_OWN_THREAD
+	depends on SEESAW_TRIGGER_OWN_THREAD && SEESAW_TRIGGER
 	default 1024
 	help
 	  Stack size of thread used by the driver to handle interrupts.

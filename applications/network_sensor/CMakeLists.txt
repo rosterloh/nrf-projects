@@ -23,7 +23,7 @@ endif()
 
 set(CONF_FILE "configuration/${BOARD}/app_${CMAKE_BUILD_TYPE}.conf")
 
-find_package(Zephyr HINTS $ENV{ZEPHYR_BASE})
+find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(network_sensor VERSION 1.0.0)
 
 target_sources(app PRIVATE src/main.c)

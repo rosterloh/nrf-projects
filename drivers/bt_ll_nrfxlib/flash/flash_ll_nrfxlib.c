@@ -17,7 +17,10 @@
 #include "ble_controller_soc.h"
 #include "multithreading_lock.h"
 
-/* NOTE: The driver supports unligned writes, but some file systems (like FCB)
+#define SOC_NV_FLASH_NODE DT_NODELABEL(flash0)
+#define SOC_NV_FLASH_CONTROLLER_NODE DT_NODELABEL(flash_controller)
+
+/* NOTE: The driver supports unaligned writes, but some file systems (like FCB)
  * may use the driver sub-optimally as a result. Word aligned writes are faster
  * and require less overhead. This value can be changed to 4 to minimize this
  * overhead.
@@ -31,8 +34,8 @@ static struct {
 	struct k_sem sync;
 	const void *data;
 	off_t addr;
-	u16_t len;
-	u16_t prev_len;
+	u32_t len;
+	u32_t prev_len;
 	u32_t tmp_word;      /**< Used for unalinged writes. */
 	/* NOTE: Read is not async, so not a part of this enum. */
 	enum {
@@ -254,6 +257,8 @@ static int btctlr_flash_read(struct device *dev,
 		return 0;
 	}
 
+	offset += DT_REG_ADDR(SOC_NV_FLASH_NODE);
+
 	/* Don't read flash while another flash operation is ongoing. */
 	err = k_mutex_lock(&flash_state.lock, K_FOREVER);
 	__ASSERT_NO_MSG(err == 0);
@@ -273,6 +278,8 @@ static int btctlr_flash_write(struct device *dev,
 	if (!is_addr_valid(offset, len)) {
 		return -EINVAL;
 	}
+
+	offset += DT_REG_ADDR(SOC_NV_FLASH_NODE);
 
 	err = k_mutex_lock(&flash_state.lock, K_FOREVER);
 	__ASSERT_NO_MSG(err == 0);
@@ -307,6 +314,8 @@ static int btctlr_flash_erase(struct device *dev, off_t offset, size_t len)
 	if (page_count == 0) {
 		return 0;
 	}
+
+	offset += DT_REG_ADDR(SOC_NV_FLASH_NODE);
 
 	err = k_mutex_lock(&flash_state.lock, K_FOREVER);
 	__ASSERT_NO_MSG(err == 0);
@@ -358,5 +367,6 @@ static int nrf_btctrl_flash_init(struct device *dev)
 	return 0;
 }
 
-DEVICE_INIT(nrf_btctrl_flash, DT_FLASH_DEV_NAME, nrf_btctrl_flash_init,
-	    NULL, NULL, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
+DEVICE_INIT(nrf_btctrl_flash, DT_LABEL(SOC_NV_FLASH_CONTROLLER_NODE),
+	    nrf_btctrl_flash_init, NULL, NULL, POST_KERNEL,
+	    CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
