@@ -37,7 +37,7 @@ static enum state state;
 
 static void scan_fn(struct k_work *work);
 
-static int get_buttons(u32_t *mask)
+static int get_buttons(uint32_t *mask)
 {
 	for (size_t i = 0; i < ARRAY_SIZE(button_pins); i++) {
 		int val = gpio_pin_get_raw(gpio_devs[button_pins[i].port],
@@ -180,7 +180,7 @@ static void scan_fn(struct k_work *work)
 			(state == STATE_SUSPENDING));
 
 	/* Get current state */
-	u32_t raw_state = 0;
+	uint32_t raw_state = 0;
 
 	int err = get_buttons(&raw_state);
 
@@ -189,11 +189,11 @@ static void scan_fn(struct k_work *work)
 		goto error;
 	}
 
-	static u32_t settled_state;
+	static uint32_t settled_state;
 
 	/* Prevent bouncing */
-	static u32_t prev_state;
-	u32_t bounce_mask = prev_state ^ raw_state;
+	static uint32_t prev_state;
+	uint32_t bounce_mask = prev_state ^ raw_state;
 	prev_state = raw_state;
 	raw_state &= ~bounce_mask;
 	raw_state |= settled_state & bounce_mask;
@@ -227,7 +227,7 @@ static void scan_fn(struct k_work *work)
 
 	if (any_pressed) {
 		/* Schedule next scan */
-		k_delayed_work_submit(&buttons_scan, SCAN_INTERVAL);
+		k_delayed_work_submit(&buttons_scan, K_MSEC(SCAN_INTERVAL));
 	} else {
 		/* If no button is pressed module can switch to callbacks */
 
@@ -268,20 +268,25 @@ error:
 
 static void button_pressed_isr(struct device *gpio_dev,
 			       struct gpio_callback *cb,
-			       u32_t pins)
+			       uint32_t pins)
 {
 	int err = 0;
 
+	/* This is a workaround. Zephyr will set any pin triggering interrupt
+	 * at the moment. Not only our pins.
+	 */
+	pins = pins & cb->pin_mask;
+
 	/* Disable all interrupts synchronously requires holding a spinlock.
 	 * The problem is that GPIO callback disable code takes time. If lock
-	 * is kept during this operation USB stack can fail in some cases.
+	 * is kept during this operation BLE stack can fail in some cases.
 	 * Instead we disable callbacks associated with the pins. This is to
 	 * make sure CPU is available for threads. The remaining callbacks are
 	 * disabled in the workqueue thread context. Work code also cancels
-	 * itselfs to prevent double execution when interrupt for another
+	 * itself to prevent double execution when interrupt for another
 	 * pin was triggered in-between.
 	 */
-	for (u32_t pin = 0; (pins != 0) && !err; pins >>= 1, pin++) {
+	for (uint32_t pin = 0; (pins != 0) && !err; pins >>= 1, pin++) {
 		if ((pins & 1) != 0) {
 			err = gpio_pin_interrupt_configure(gpio_dev, pin,
 							   GPIO_INT_DISABLE);
@@ -292,7 +297,7 @@ static void button_pressed_isr(struct device *gpio_dev,
 		LOG_ERR("Cannot disable callbacks");
 		module_set_state(MODULE_STATE_ERROR);
 	} else {
-		k_delayed_work_submit(&button_pressed, 0);
+		k_delayed_work_submit(&button_pressed, K_NO_WAIT);
 	}
 }
 
@@ -315,7 +320,7 @@ static void button_pressed_fn(struct k_work *work)
 	case STATE_ACTIVE:
 		state = STATE_SCANNING;
 		k_delayed_work_submit(&buttons_scan,
-				      CONFIG_MESH_SENSOR_BUTTONS_DEBOUNCE_INTERVAL);
+				      K_MSEC(CONFIG_MESH_SENSOR_BUTTONS_DEBOUNCE_INTERVAL));
 		break;
 
 	case STATE_SCANNING:
@@ -348,7 +353,7 @@ static void init_fn(void)
 		goto error;
 	}
 
-	u32_t pin_mask[ARRAY_SIZE(port_map)] = {0};
+	uint32_t pin_mask[ARRAY_SIZE(port_map)] = {0};
 	for (size_t i = 0; i < ARRAY_SIZE(button_pins); i++) {
 		/* Module starts in scanning mode and will switch to
 		 * callback mode if no button is pressed.

@@ -11,3 +11,6 @@ target_sources_ifdef(CONFIG_MESH_SENSOR_BATTERY_CHARGER_DISCRETE app
 
 target_sources_ifdef(CONFIG_MESH_SENSOR_BATTERY_MEAS app
                      PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/battery_meas.c)
+
+target_sources_ifdef(CONFIG_SENSORS app
+                     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/env_sensors.c)

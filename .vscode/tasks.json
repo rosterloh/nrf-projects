@@ -123,7 +123,7 @@
                 "thingy52_nrf52832",
                 "esp32"
             ],
-            "default": "nrf52_adafruit_feather"
+            "default": "thingy52_nrf52832"
         },
         {
             "id": "appName",
@@ -137,7 +137,7 @@
                 "applications/mesh_sensor",
                 "applications/network_sensor"
             ],
-            "default": "applications/hid_controller"
+            "default": "applications/mesh_sensor"
         },
         {
             "id": "buildType",

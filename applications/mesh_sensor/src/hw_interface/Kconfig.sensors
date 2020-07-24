@@ -1,0 +1,7 @@
+menu "Sensors configuration"
+
+module = MESH_SENSOR_ENV_SENSORS
+module-str = Sensors module
+source "subsys/logging/Kconfig.template.log_config"
+
+endmenu

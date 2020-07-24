@@ -4,6 +4,7 @@ rsource "Kconfig.buttons"
 rsource "Kconfig.leds"
 rsource "Kconfig.battery_charger"
 rsource "Kconfig.battery_meas"
+rsource "Kconfig.sensors"
 
 module = MESH_SENSOR_BOARD
 module-str = board module

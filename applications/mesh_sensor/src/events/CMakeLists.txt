@@ -6,4 +6,7 @@ target_sources(app PRIVATE
 )
 
 target_sources_ifdef(CONFIG_MESH_SENSOR_LED_ENABLE app
-			PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/led_event.c)
+      PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/led_event.c)
+
+target_sources_ifdef(CONFIG_SENSOR app
+			PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/sensor_event.c)

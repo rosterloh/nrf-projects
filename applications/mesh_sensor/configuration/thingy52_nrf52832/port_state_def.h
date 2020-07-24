@@ -30,12 +30,12 @@ static const struct pin_state port1_off[] = {
 
 static const struct port_state port_state_on[] = {
 	{
-		.name     = DT_NORDIC_NRF_GPIO_GPIO_0_LABEL,
+		.name     = DT_LABEL(DT_NODELABEL(gpio0)),
 		.ps       = port0_on,
 		.ps_count = ARRAY_SIZE(port0_on),
 	},
 	{
-		.name     = DT_INST_0_SEMTECH_SX1509B_LABEL,
+		.name     = DT_LABEL(DT_NODELABEL(sx1509b)),
 		.ps       = port1_on,
 		.ps_count = ARRAY_SIZE(port1_on),
 	}
@@ -43,12 +43,12 @@ static const struct port_state port_state_on[] = {
 
 static const struct port_state port_state_off[] = {
 	{
-		.name     = DT_NORDIC_NRF_GPIO_GPIO_0_LABEL,
+		.name     = DT_LABEL(DT_NODELABEL(gpio0)),
 		.ps       = port0_off,
 		.ps_count = ARRAY_SIZE(port0_off),
 	},
 	{
-		.name     = DT_INST_0_SEMTECH_SX1509B_LABEL,
+		.name     = DT_LABEL(DT_NODELABEL(sx1509b)),
 		.ps       = port1_off,
 		.ps_count = ARRAY_SIZE(port1_off),
 	}

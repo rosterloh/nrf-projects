@@ -47,7 +47,7 @@ LOG_MODULE_REGISTER(MODULE, CONFIG_MESH_SENSOR_BATTERY_MEAS_LOG_LEVEL);
 
 #define VBATT DT_PATH(vbatt)
 
-static s16_t adc_buffer;
+static int16_t adc_buffer;
 static bool adc_async_read_pending;
 
 static struct k_delayed_work battery_lvl_read;
@@ -59,20 +59,20 @@ static struct k_poll_event  async_evt =
 
 struct io_channel_config {
 	const char *label;
-	u8_t channel;
+	uint8_t channel;
 };
 
 struct gpio_channel_config {
 	const char *label;
-	u8_t pin;
-	u8_t flags;
+	uint8_t pin;
+	uint8_t flags;
 };
 
 struct divider_config {
 	const struct io_channel_config io_channel;
 	const struct gpio_channel_config power_gpios;
-	const u32_t output_ohm;
-	const u32_t full_ohm;
+	const uint32_t output_ohm;
+	const uint32_t full_ohm;
 };
 
 static const struct divider_config divider_config = {
@@ -96,7 +96,7 @@ struct divider_data {
 	struct device *gpio;
 	struct adc_channel_cfg adc_cfg;
 	struct adc_sequence adc_seq;
-	s16_t raw;
+	int16_t raw;
 };
 static struct divider_data divider_data;
 static int batt_mV;
@@ -210,7 +210,7 @@ static void battery_monitor_stop(void)
 static void battery_lvl_process(void)
 {
 	const struct battery_level_point *pb = battery_curve;
-	u8_t level;
+	uint8_t level;
 
 	if (batt_mV >= pb->lvl_mV) {
 		/* Measured voltage above highest point, cap at maximum. */
@@ -254,7 +254,7 @@ static void battery_lvl_read_fn(struct k_work *work)
 	err = adc_read(ddp->adc, sp);
 	sp->calibrate = false;
 	if (err == 0) {
-		s32_t val = ddp->raw;
+		int32_t val = ddp->raw;
 
 		adc_raw_to_millivolts(adc_ref_internal(ddp->adc),
 				      ddp->adc_cfg.gain,

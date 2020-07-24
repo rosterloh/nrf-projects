@@ -11,8 +11,8 @@ const struct {} leds_def_include_once;
 static const size_t led_pins[CONFIG_MESH_SENSOR_LED_COUNT]
 			    [CONFIG_MESH_SENSOR_LED_COLOUR_COUNT] = {
 	{
-		DT_GPIO_LEDS_LED_0_GPIOS_PIN,
-		DT_GPIO_LEDS_LED_1_GPIOS_PIN,
-		DT_GPIO_LEDS_LED_2_GPIOS_PIN
+		DT_GPIO_PIN(DT_ALIAS(led0), gpios),
+		DT_GPIO_PIN(DT_ALIAS(led1), gpios),
+		DT_GPIO_PIN(DT_ALIAS(led2), gpios),
 	}
 };

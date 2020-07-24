@@ -19,7 +19,7 @@ extern "C" {
  */
 struct led_colour {
 	/** Values for colour channels. */
-	u8_t c[CONFIG_MESH_SENSOR_LED_COLOUR_COUNT];
+	uint8_t c[CONFIG_MESH_SENSOR_LED_COLOUR_COUNT];
 };
 
 
@@ -34,10 +34,10 @@ struct led_effect_step {
 	struct led_colour colour;
 
 	/** Number of substeps. */
-	u16_t substep_count;
+	uint16_t substep_count;
 
 	/** Duration of a single substep. */
-	u16_t substep_time;
+	uint16_t substep_time;
 };
 
 
@@ -48,14 +48,14 @@ struct led_effect {
 	const struct led_effect_step *steps;
 
 	/** Number of steps for the given effect. */
-	u16_t step_count;
+	uint16_t step_count;
 
 	/** Flag that indicates if the sequence should start again after it finishes. */
 	bool loop_forever;
 };
 
 
-/** Create LED colour initializer for LED turned on.
+/** Create LED colour initialiser for LED turned on.
  *
  * @note As arguments, pass the brightness levels for every colour channel.
  * The amount of the colour channels is defined in the configuration (three
@@ -74,7 +74,7 @@ struct led_effect {
 #endif
 
 
-/** Create LED colour initializer for LED turned off.
+/** Create LED colour initialiser for LED turned off.
  */
 #if CONFIG_MESH_SENSOR_LED_COLOUR_COUNT == 1
 	#define LED_NOCOLOUR() {			\

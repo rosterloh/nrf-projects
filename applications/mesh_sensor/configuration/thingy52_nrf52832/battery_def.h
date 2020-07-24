@@ -35,10 +35,10 @@ static const u8_t battery_voltage_to_soc[] = {
  */
 struct battery_level_point {
 	/** Remaining life at #lvl_mV. */
-	u16_t lvl_pptt;
+	uint16_t lvl_pptt;
 
 	/** Battery voltage at #lvl_pptt remaining life. */
-	u16_t lvl_mV;
+	uint16_t lvl_mV;
 };
 
 static const struct battery_level_point battery_curve[] = {

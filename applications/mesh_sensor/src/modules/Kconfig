@@ -1,5 +1,4 @@
 rsource "Kconfig.power_manager"
 rsource "Kconfig.led_state"
-rsource "Kconfig.shell"
 rsource "Kconfig.ble"
 rsource "Kconfig.settings_loader"

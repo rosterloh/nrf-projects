@@ -28,6 +28,10 @@ config MESH_SENSOR_INIT_LOG_POWER_DOWN_EVENT
 	bool "Power down event"
 	default y
 
+config MESH_SENSOR_INIT_LOG_SENSOR_EVENT
+	bool "Sensor event"
+	default y
+
 config MESH_SENSOR_INIT_LOG_WAKE_UP_EVENT
 	bool "Wake up event"
 	default y
