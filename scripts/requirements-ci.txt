@@ -48,7 +48,7 @@ py==1.8.1
 pycparser==2.20
 pyelftools==0.26
 PyGithub==1.51
-Pygments==2.6.1
+Pygments==2.7.4
 PyJWT==1.7.1
 pykwalify==1.7.0
 pylink-square==0.6.0
